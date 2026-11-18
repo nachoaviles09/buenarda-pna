@@ -4,8 +4,8 @@
  * BUENARDA (@buenardaparana) — Lógica de la web
  * Local: Colón 696, Paraná, Entre Ríos · Miércoles a Domingo
  *
- * Los datos editables (precios, carta, horarios, envío, WhatsApp, reseñas)
- * viven en menu-data.js. Este archivo no hace falta tocarlo para cambiarlos.
+ * Los datos base viven en menu-data.js y pueden sobreescribirse en vivo
+ * desde Google Sheets (SITE.sheet).
  */
 
 const CART_KEY = 'buenarda_cart_v1';
@@ -32,7 +32,11 @@ function loadCartFromStorage() {
     if (!Array.isArray(saved)) return [];
     return saved
       .filter((c) => c && typeof c.key === 'string' && Number.isFinite(c.qty) && Number.isFinite(c.unitPrice))
-      .map((c) => ({ ...c, note: typeof c.note === 'string' ? c.note : '' }));
+      .map((c) => ({
+        ...c,
+        size: c.size || (c.key.endsWith('__triple') ? 'triple' : c.key.endsWith('__doble') ? 'doble' : 'unico'),
+        note: typeof c.note === 'string' ? c.note : '',
+      }));
   } catch {
     return [];
   }
@@ -42,7 +46,7 @@ function saveCartToStorage() {
   try {
     localStorage.setItem(CART_KEY, JSON.stringify(state.cart));
   } catch {
-    // Almacenamiento no disponible (modo privado): el carrito sigue funcionando en memoria
+    // Almacenamiento no disponible (modo privado)
   }
 }
 
@@ -85,10 +89,10 @@ function findItem(id) {
   return MENU_ITEMS.find((entry) => entry.id === id);
 }
 
-/**
- * Medición opcional. No hace nada hasta que se instale Google Analytics (gtag) o Meta Pixel (fbq),
- * y además dispara un evento DOM "buenarda:track" por si se quiere escuchar desde otro script.
- */
+function isItemAvailable(item) {
+  return Boolean(item) && item.available !== false;
+}
+
 function track(name, params = {}) {
   try {
     if (typeof window.gtag === 'function') window.gtag('event', name, params);
@@ -96,6 +100,221 @@ function track(name, params = {}) {
     window.dispatchEvent(new CustomEvent('buenarda:track', { detail: { name, params } }));
   } catch {
     // La medición nunca debe romper la web
+  }
+}
+
+/** Genera código corto de comanda (ej. BN-4821) y fecha/hora local exacta de Paraná. */
+function createOrderMeta(now = new Date()) {
+  const num = Math.floor(1000 + Math.random() * 9000);
+  const code = `BN-${num}`;
+
+  const dateStr = new Intl.DateTimeFormat('es-AR', {
+    timeZone: SITE.timeZone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(now);
+
+  const timeStr = new Intl.DateTimeFormat('es-AR', {
+    timeZone: SITE.timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(now);
+
+  return { code, dateStr, timeStr };
+}
+
+// ---------------------------------------------------------------------------
+// Sincronización en vivo con Google Sheets (Carta, Stock y Configuración)
+// ---------------------------------------------------------------------------
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        field += '"';
+        i += 1;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field.trim());
+      field = '';
+    } else if (ch === '\r' && next === '\n') {
+      row.push(field.trim());
+      rows.push(row);
+      row = [];
+      field = '';
+      i += 1;
+    } else if (ch === '\n' || ch === '\r') {
+      row.push(field.trim());
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += ch;
+    }
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field.trim());
+    rows.push(row);
+  }
+
+  if (rows.length < 2) return [];
+  const headers = rows[0].map((h) => h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+
+  return rows
+    .slice(1)
+    .filter((r) => r.some((cell) => cell !== ''))
+    .map((r) => {
+      const obj = {};
+      headers.forEach((h, idx) => {
+        obj[h] = r[idx] ?? '';
+      });
+      return obj;
+    });
+}
+
+function parsePrice(raw) {
+  const digits = String(raw ?? '').replace(/[^\d]/g, '');
+  return digits ? Number(digits) : NaN;
+}
+
+function parseBooleanFlag(raw, defaultValue = true) {
+  const val = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (!val) return defaultValue;
+  if (['no', 'false', '0', 'agotado', 'sin stock', 'inactivo'].includes(val)) return false;
+  if (['si', 'true', '1', 'disponible', 'ok', 'activo'].includes(val)) return true;
+  return defaultValue;
+}
+
+function applyConfigRows(rows) {
+  rows.forEach((r) => {
+    const key = String(r.clave || r.key || '')
+      .trim()
+      .toLowerCase();
+    const val = String(r.valor || r.value || '').trim();
+    if (!key) return;
+
+    if (key === 'precio_triple') {
+      const n = parsePrice(val);
+      if (Number.isFinite(n)) SITE.tripleExtraPrice = n;
+    } else if (key === 'costo_envio') {
+      if (!val || val.toLowerCase() === 'confirmar') {
+        SITE.delivery = { ...(SITE.delivery || {}), fee: null };
+      } else {
+        const n = parsePrice(val);
+        if (Number.isFinite(n)) SITE.delivery = { ...(SITE.delivery || {}), fee: n };
+      }
+    } else if (key === 'whatsapp') {
+      const digits = val.replace(/[^\d]/g, '');
+      if (digits.length >= 10) SITE.whatsappNumber = digits;
+    } else if (key === 'usar_fotos') {
+      SITE.usePhotos = parseBooleanFlag(val, SITE.usePhotos);
+    }
+  });
+}
+
+function applyMenuRows(rows) {
+  if (rows.length === 0) return;
+
+  rows.forEach((r) => {
+    const id = String(r.id || '').trim();
+    if (!id) return;
+
+    const existing = findItem(id);
+    const parsedPrice = parsePrice(r.precio);
+    const available = parseBooleanFlag(r.disponible, true);
+
+    if (existing) {
+      if (r.nombre) existing.name = r.nombre;
+      if (r.categoria) existing.category = r.categoria.toLowerCase();
+      if (r.etiqueta) existing.badge = r.etiqueta;
+      if (Number.isFinite(parsedPrice) && parsedPrice > 0) existing.basePrice = parsedPrice;
+      if (r.ingredientes) existing.ingredients = r.ingredientes;
+      if (r.icono) existing.icon = r.icono;
+      existing.available = available;
+    } else {
+      const isBurger = parseBooleanFlag(r.es_burger, (r.categoria || '').toLowerCase() !== 'extras');
+      MENU_ITEMS.push({
+        id,
+        name: r.nombre || id.toUpperCase(),
+        category: (r.categoria || (isBurger ? 'especiales' : 'extras')).toLowerCase(),
+        badge: r.etiqueta || 'NUEVA',
+        isBurger,
+        icon: r.icono || (isBurger ? '🍔' : '🍟'),
+        layers: isBurger ? { cheese: 'cheddar', sauce: 'buenarda' } : undefined,
+        basePrice: Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : 10000,
+        ingredients: r.ingredientes || '',
+        available,
+      });
+    }
+  });
+
+  // Actualiza precios de productos ya guardados en el carrito del navegador
+  let cartChanged = false;
+  state.cart.forEach((line) => {
+    const item = findItem(line.id);
+    if (!item) return;
+    const expectedPrice = item.basePrice + (line.size === 'triple' ? SITE.tripleExtraPrice : 0);
+    if (line.unitPrice !== expectedPrice) {
+      line.unitPrice = expectedPrice;
+      cartChanged = true;
+    }
+    if (line.name !== item.name) {
+      line.name = item.name;
+      cartChanged = true;
+    }
+  });
+  if (cartChanged) saveCartToStorage();
+}
+
+async function syncMenuFromSheet() {
+  const menuUrl = SITE.sheet?.menuCsvUrl?.trim();
+  const configUrl = SITE.sheet?.configCsvUrl?.trim();
+  if (!menuUrl && !configUrl) return;
+
+  const fetchCSV = async (url) => {
+    if (!url) return null;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return parseCSV(await res.text());
+  };
+
+  const [configResult, menuResult] = await Promise.allSettled([fetchCSV(configUrl), fetchCSV(menuUrl)]);
+
+  let updated = false;
+  if (configResult.status === 'fulfilled' && configResult.value) {
+    applyConfigRows(configResult.value);
+    updated = true;
+  }
+  if (menuResult.status === 'fulfilled' && menuResult.value) {
+    applyMenuRows(menuResult.value);
+    updated = true;
+  }
+
+  if (updated) {
+    renderHeroShowcase();
+    renderMenuGrid();
+    renderCart();
   }
 }
 
@@ -107,7 +326,6 @@ function formatHour(h) {
   return String(h % 24).padStart(2, '0') + ':00';
 }
 
-/** Día de la semana (0=domingo) y hora/minuto en Argentina, sin depender de la zona del navegador. */
 function getLocalParts(date) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: SITE.timeZone,
@@ -177,7 +395,7 @@ function renderOpenStatus() {
 }
 
 // ---------------------------------------------------------------------------
-// Ilustración SVG (o foto real si está activada en menu-data.js)
+// Ilustración SVG (o foto real si está activada)
 // ---------------------------------------------------------------------------
 
 function createBurgerSVG(item, isTriple = false, prefix = 'card') {
@@ -218,19 +436,15 @@ function createBurgerSVG(item, isTriple = false, prefix = 'card') {
         </linearGradient>
       </defs>
 
-      <!-- Pan superior -->
       <path d="M42 64 C42 28 178 28 178 64 Z" fill="url(#${gradId})" />
-      <!-- Semillas de sésamo -->
       <ellipse cx="86" cy="42" rx="3" ry="1.6" fill="#F8E7C1" transform="rotate(-18 86 42)" />
       <ellipse cx="112" cy="37" rx="3" ry="1.6" fill="#F8E7C1" />
       <ellipse cx="138" cy="43" rx="3" ry="1.6" fill="#F8E7C1" transform="rotate(18 138 43)" />
       <ellipse cx="98" cy="51" rx="3" ry="1.6" fill="#F8E7C1" transform="rotate(-10 98 51)" />
       <ellipse cx="126" cy="51" rx="3" ry="1.6" fill="#F8E7C1" transform="rotate(12 126 51)" />
 
-      <!-- Salsa superior -->
       <path d="M46 66 Q75 74 110 67 T174 66" stroke="${sauceColor}" stroke-width="7" stroke-linecap="round" fill="none" />
 
-      <!-- Cebolla fresca brunoise -->
       ${
         layers.dicedOnion
           ? `<g fill="#F8F8F8">
@@ -243,21 +457,18 @@ function createBurgerSVG(item, isTriple = false, prefix = 'card') {
           : ''
       }
 
-      <!-- Cebolla caramelizada -->
       ${
         layers.caramelOnion
           ? `<path d="M48 73 Q80 65 110 73 T172 73" stroke="#6E3B1E" stroke-width="7" stroke-linecap="round" fill="none" />`
           : ''
       }
 
-      <!-- Cebolla crispy -->
       ${
         layers.crispyOnion
           ? `<path d="M46 73 L64 67 L82 75 L102 66 L122 75 L142 67 L162 74 L175 68" stroke="#C67D30" stroke-width="5.5" stroke-linecap="round" fill="none" />`
           : ''
       }
 
-      <!-- Lechuga y Tomate (Americana) -->
       ${
         layers.lettuce
           ? `<path d="M40 77 Q58 70 76 77 T112 77 T148 77 T180 77" stroke="#4CA626" stroke-width="7" stroke-linecap="round" fill="none" />`
@@ -265,7 +476,6 @@ function createBurgerSVG(item, isTriple = false, prefix = 'card') {
       }
       ${layers.tomato ? `<rect x="48" y="81" width="124" height="6" rx="3" fill="#D92B2B" />` : ''}
 
-      <!-- Huevo frito -->
       ${
         layers.egg
           ? `<g>
@@ -275,25 +485,20 @@ function createBurgerSVG(item, isTriple = false, prefix = 'card') {
           : ''
       }
 
-      <!-- Bacon ahumado -->
       ${
         layers.bacon
           ? `<path d="M42 90 Q76 84 110 90 T178 90" stroke="#7A2018" stroke-width="7" stroke-linecap="round" fill="none" />`
           : ''
       }
 
-      <!-- Primer medallón + Queso fundido -->
       <rect x="44" y="93" width="132" height="19" rx="9" fill="#3B2014" />
       <polygon points="48,93 172,93 110,109" fill="${cheeseColor}" />
 
-      <!-- Segundo medallón + Queso fundido -->
       <rect x="44" y="116" width="132" height="19" rx="9" fill="#321A10" />
       <polygon points="48,116 172,116 135,131 85,131" fill="${cheeseColor}" />
 
-      <!-- Tercer medallón opcional (Triple) -->
       ${extraPattySVG}
 
-      <!-- Pepinillos (7th Street) -->
       ${
         layers.pickles
           ? `<g fill="#4F772D">
@@ -304,13 +509,11 @@ function createBurgerSVG(item, isTriple = false, prefix = 'card') {
           : ''
       }
 
-      <!-- Pan inferior -->
       <rect x="45" y="${bottomBunY}" width="130" height="18" rx="8" fill="#B5651D" />
     </svg>
   `;
 }
 
-/** Devuelve la foto real (si está activada) o la ilustración. Si la foto no existe, se cae a la ilustración. */
 function visualHTML(item, isTriple, prefix) {
   if (SITE.usePhotos) {
     const src = `assets/burgers/${encodeURIComponent(item.id)}.${SITE.photoExtension || 'jpg'}`;
@@ -338,13 +541,17 @@ document.addEventListener(
 
 function renderHeroShowcase() {
   const burgers = MENU_ITEMS.filter((item) => item.isBurger);
+  if (burgers.length === 0) return;
+
   const current = burgers[state.heroIndex % burgers.length];
+  const available = isItemAvailable(current);
 
   const visualEl = document.getElementById('heroBurgerVisual');
   const nameEl = document.getElementById('heroBurgerName');
   const priceEl = document.getElementById('heroBurgerPrice');
   const descEl = document.getElementById('heroBurgerDesc');
   const dotsEl = document.getElementById('heroDots');
+  const addBtn = document.getElementById('addHeroBurgerBtn');
 
   if (!visualEl || !current) return;
 
@@ -352,6 +559,11 @@ function renderHeroShowcase() {
   nameEl.textContent = current.name;
   priceEl.textContent = formatARS(current.basePrice);
   descEl.textContent = current.ingredients;
+
+  if (addBtn) {
+    addBtn.disabled = !available;
+    addBtn.textContent = available ? '+ Agregar al Pedido' : 'Agotado por hoy';
+  }
 
   dotsEl.innerHTML = burgers
     .map(
@@ -366,6 +578,7 @@ function renderHeroShowcase() {
 // ---------------------------------------------------------------------------
 
 function cardHTML(item, animate = false) {
+  const available = isItemAvailable(item);
   const selectedSize = state.selectedSizes[item.id] || 'doble';
   const isTriple = item.isBurger && selectedSize === 'triple';
   const finalPrice = item.basePrice + (isTriple ? SITE.tripleExtraPrice : 0);
@@ -373,21 +586,25 @@ function cardHTML(item, animate = false) {
   const sizeSelectorHTML = item.isBurger
     ? `
       <div class="size-selector" role="group" aria-label="Tamaño de ${escapeHTML(item.name)}">
-        <button type="button" class="size-btn ${!isTriple ? 'is-active' : ''}" data-size-id="${item.id}" data-size="doble" aria-pressed="${!isTriple}">
+        <button type="button" class="size-btn ${!isTriple ? 'is-active' : ''}" data-size-id="${item.id}" data-size="doble" aria-pressed="${!isTriple}" ${!available ? 'disabled' : ''}>
           Doble (x4 Queso)
         </button>
-        <button type="button" class="size-btn ${isTriple ? 'is-active' : ''}" data-size-id="${item.id}" data-size="triple" aria-pressed="${isTriple}">
+        <button type="button" class="size-btn ${isTriple ? 'is-active' : ''}" data-size-id="${item.id}" data-size="triple" aria-pressed="${isTriple}" ${!available ? 'disabled' : ''}>
           Triple (+${formatARS(SITE.tripleExtraPrice)})
         </button>
       </div>
     `
     : '';
 
+  const badgeHTML = available
+    ? `<span class="burger-card__badge">${escapeHTML(item.badge)}</span>`
+    : `<span class="burger-card__badge burger-card__badge--soldout">AGOTADO POR HOY</span>`;
+
   return `
-    <article class="burger-card${animate ? ' is-entering' : ''}" data-card-id="${item.id}">
+    <article class="burger-card${animate ? ' is-entering' : ''}${!available ? ' is-sold-out' : ''}" data-card-id="${item.id}">
       <div>
         <div class="burger-card__top">
-          <span class="burger-card__badge">${escapeHTML(item.badge)}</span>
+          ${badgeHTML}
         </div>
         <div class="burger-card__visual">
           ${visualHTML(item, isTriple, 'card')}
@@ -400,7 +617,9 @@ function cardHTML(item, animate = false) {
         ${sizeSelectorHTML}
         <div class="burger-card__footer">
           <span class="burger-card__price">${formatARS(finalPrice)}</span>
-          <button type="button" class="btn-add" data-add-id="${item.id}">+ Agregar</button>
+          <button type="button" class="btn-add" data-add-id="${item.id}" ${!available ? 'disabled' : ''}>
+            ${available ? '+ Agregar' : 'Agotado'}
+          </button>
         </div>
       </div>
     </article>
@@ -433,7 +652,6 @@ function renderMenuGrid() {
   gridEl.innerHTML = filtered.map((item) => cardHTML(item, true)).join('');
 }
 
-/** Cambia Doble/Triple actualizando solo esa tarjeta (sin redibujar toda la grilla). */
 function updateSingleCard(itemId) {
   const item = findItem(itemId);
   const card = document.querySelector(`#menuGrid [data-card-id="${itemId}"]`);
@@ -462,11 +680,10 @@ function bumpCartBadge() {
   const badge = document.getElementById('cartCountBadge');
   if (!badge) return;
   badge.classList.remove('is-bump');
-  void badge.offsetWidth; // reinicia la animación
+  void badge.offsetWidth;
   badge.classList.add('is-bump');
 }
 
-/** Pelotita que vuela desde el botón "Agregar" hasta el carrito. */
 function flyToCart(fromEl) {
   const target = document.getElementById('openCartBtn');
   if (!fromEl || !target || prefersReducedMotion || !fromEl.isConnected) return;
@@ -498,6 +715,11 @@ function addToCart(itemId, forcedSize = null, sourceEl = null) {
   const item = findItem(itemId);
   if (!item) return;
 
+  if (!isItemAvailable(item)) {
+    showToast(`${item.name} está agotado por hoy`);
+    return;
+  }
+
   const size = item.isBurger ? forcedSize || state.selectedSizes[item.id] || 'doble' : 'unico';
   const unitPrice = item.basePrice + (size === 'triple' ? SITE.tripleExtraPrice : 0);
   const cartKey = `${item.id}__${size}`;
@@ -509,6 +731,7 @@ function addToCart(itemId, forcedSize = null, sourceEl = null) {
     state.cart.push({
       key: cartKey,
       id: item.id,
+      size,
       name: item.name,
       sizeLabel: item.isBurger ? (size === 'triple' ? 'Triple (x6 Queso)' : 'Doble (x4 Queso)') : 'Porción / Unidad',
       unitPrice,
@@ -530,6 +753,14 @@ function updateCartQty(cartKey, delta) {
   const index = state.cart.findIndex((c) => c.key === cartKey);
   if (index === -1) return;
 
+  if (delta > 0) {
+    const item = findItem(state.cart[index].id);
+    if (item && !isItemAvailable(item)) {
+      showToast(`${item.name} está agotado por hoy`);
+      return;
+    }
+  }
+
   state.cart[index].qty += delta;
   if (state.cart[index].qty <= 0) state.cart.splice(index, 1);
 
@@ -547,7 +778,7 @@ function setCartNote(cartKey, value) {
   const line = state.cart.find((c) => c.key === cartKey);
   if (!line) return;
   line.note = value.slice(0, 140);
-  saveCartToStorage(); // sin re-render, para no perder el foco mientras se escribe
+  saveCartToStorage();
 }
 
 function getTotals() {
@@ -565,7 +796,7 @@ function upsellHTML() {
   const inCart = new Set(state.cart.map((c) => c.id));
   const picks = (SITE.upsellIds || [])
     .map(findItem)
-    .filter((m) => m && !inCart.has(m.id))
+    .filter((m) => m && isItemAvailable(m) && !inCart.has(m.id))
     .slice(0, 3);
   if (picks.length === 0) return '';
 
@@ -622,26 +853,29 @@ function renderCart() {
 
   container.innerHTML =
     state.cart
-      .map(
-        (item) => `
-        <div class="cart-item">
+      .map((line) => {
+        const catalogItem = findItem(line.id);
+        const soldOut = catalogItem && !isItemAvailable(catalogItem);
+        return `
+        <div class="cart-item${soldOut ? ' is-sold-out' : ''}">
           <div class="cart-item__row">
             <div class="cart-item__info">
-              <h4>${escapeHTML(item.name)}</h4>
-              <span class="cart-item__meta">${escapeHTML(item.sizeLabel)} · ${formatARS(item.unitPrice * item.qty)}</span>
+              <h4>${escapeHTML(line.name)}</h4>
+              <span class="cart-item__meta">${escapeHTML(line.sizeLabel)} · ${formatARS(line.unitPrice * line.qty)}</span>
+              ${soldOut ? '<span class="cart-item__soldout-tag">⚠️ Agotado por hoy — quitalo para continuar</span>' : ''}
             </div>
             <div class="cart-item__controls">
-              <button type="button" class="qty-btn" data-qty-key="${escapeHTML(item.key)}" data-delta="-1" aria-label="Restar unidad de ${escapeHTML(item.name)}">−</button>
-              <strong aria-live="polite">${item.qty}</strong>
-              <button type="button" class="qty-btn" data-qty-key="${escapeHTML(item.key)}" data-delta="1" aria-label="Sumar unidad de ${escapeHTML(item.name)}">+</button>
-              <button type="button" class="qty-btn qty-btn--remove" data-remove-key="${escapeHTML(item.key)}" aria-label="Quitar ${escapeHTML(item.name)} del pedido">✕</button>
+              <button type="button" class="qty-btn" data-qty-key="${escapeHTML(line.key)}" data-delta="-1" aria-label="Restar unidad de ${escapeHTML(line.name)}">−</button>
+              <strong aria-live="polite">${line.qty}</strong>
+              <button type="button" class="qty-btn" data-qty-key="${escapeHTML(line.key)}" data-delta="1" aria-label="Sumar unidad de ${escapeHTML(line.name)}" ${soldOut ? 'disabled' : ''}>+</button>
+              <button type="button" class="qty-btn qty-btn--remove" data-remove-key="${escapeHTML(line.key)}" aria-label="Quitar ${escapeHTML(line.name)} del pedido">✕</button>
             </div>
           </div>
-          <input type="text" class="cart-item__note" maxlength="140" data-note-key="${escapeHTML(item.key)}"
-            value="${escapeHTML(item.note || '')}" placeholder="Aclaración (ej. sin pepinillos, punto de carne)" aria-label="Aclaración para ${escapeHTML(item.name)}" />
+          <input type="text" class="cart-item__note" maxlength="140" data-note-key="${escapeHTML(line.key)}"
+            value="${escapeHTML(line.note || '')}" placeholder="Aclaración (ej. sin pepinillos, punto de carne)" aria-label="Aclaración para ${escapeHTML(line.name)}" />
         </div>
-      `
-      )
+      `;
+      })
       .join('') + upsellHTML();
 }
 
@@ -671,10 +905,10 @@ function updateMobileBar(totalUnits, totalAmount) {
 }
 
 // ---------------------------------------------------------------------------
-// Pedido por WhatsApp
+// Pedido por WhatsApp + Registro de ventas en Google Sheets
 // ---------------------------------------------------------------------------
 
-function buildWhatsAppOrderText() {
+function buildWhatsAppOrderText(meta = createOrderMeta()) {
   const name = document.getElementById('customerName')?.value.trim() || 'Sin nombre';
   const address = document.getElementById('customerAddress')?.value.trim();
   const payment = document.getElementById('paymentMethod')?.value || 'Efectivo';
@@ -682,7 +916,8 @@ function buildWhatsAppOrderText() {
   const totals = getTotals();
 
   const lines = [
-    '🍔 *NUEVO PEDIDO — BUENARDA PARANÁ*',
+    `🍔 *PEDIDO #${meta.code} — BUENARDA PARANÁ*`,
+    `🕒 *Hora:* ${meta.timeStr} hs (${meta.dateStr})`,
     `👤 *Cliente:* ${name}`,
     totals.isDelivery
       ? `🛵 *Modalidad:* Delivery (${address || 'Dirección a confirmar'})`
@@ -711,6 +946,62 @@ function buildWhatsAppOrderText() {
   return lines.join('\n');
 }
 
+function logOrderToSheet(meta) {
+  const scriptUrl = SITE.appsScriptUrl?.trim();
+  if (!scriptUrl) return;
+
+  const name = document.getElementById('customerName')?.value.trim() || 'Sin nombre';
+  const address = document.getElementById('customerAddress')?.value.trim() || '';
+  const payment = document.getElementById('paymentMethod')?.value || 'Efectivo';
+  const notes = document.getElementById('orderNotes')?.value.trim() || '';
+  const totals = getTotals();
+
+  let burgersDoble = 0;
+  let burgersTriple = 0;
+  let totalUnidades = 0;
+
+  const productos = state.cart
+    .map((line) => {
+      totalUnidades += line.qty;
+      if (line.size === 'doble') burgersDoble += line.qty;
+      if (line.size === 'triple') burgersTriple += line.qty;
+      const suffix = line.size === 'unico' ? '' : ` [${line.size.toUpperCase()}]`;
+      const noteText = line.note ? ` (${line.note})` : '';
+      return `${line.qty}x ${line.name}${suffix}${noteText}`;
+    })
+    .join(' | ');
+
+  const payload = {
+    codigo: meta.code,
+    fecha: meta.dateStr,
+    hora: meta.timeStr,
+    cliente: name,
+    modalidad: totals.isDelivery ? 'Delivery' : 'Retiro en local',
+    direccion: totals.isDelivery ? address : 'Colón 696',
+    pago: payment,
+    productos,
+    burgersDoble,
+    burgersTriple,
+    totalUnidades,
+    subtotal: totals.subtotal,
+    envio: totals.shipping,
+    total: totals.total,
+    notas: notes,
+  };
+
+  try {
+    fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  } catch {
+    // Nunca interrumpir el envío hacia WhatsApp
+  }
+}
+
 function markInvalid(el, message) {
   el.classList.add('is-invalid');
   el.setAttribute('aria-invalid', 'true');
@@ -719,6 +1010,15 @@ function markInvalid(el, message) {
 }
 
 function validateOrder() {
+  const soldOutLine = state.cart.find((line) => {
+    const item = findItem(line.id);
+    return item && !isItemAvailable(item);
+  });
+  if (soldOutLine) {
+    showToast(`Quitá "${soldOutLine.name}" porque se agotó por hoy`);
+    return false;
+  }
+
   const nameEl = document.getElementById('customerName');
   const addressEl = document.getElementById('customerAddress');
 
@@ -739,7 +1039,7 @@ function validateOrder() {
 }
 
 // ---------------------------------------------------------------------------
-// Drawer del carrito (accesible: Esc, foco atrapado, inert)
+// Drawer del carrito
 // ---------------------------------------------------------------------------
 
 let lastFocusedBeforeDrawer = null;
@@ -808,12 +1108,6 @@ function showToast(message) {
 // Video "Recorrido por el local"
 // ---------------------------------------------------------------------------
 
-/**
- * - Arranca solo (sin sonido) al entrar en pantalla y se pausa al salir.
- * - Respeta "reducir movimiento": en ese caso solo reproduce si el usuario lo pide.
- * - Si el usuario lo pausa a mano, no se vuelve a reproducir solo.
- * - Muestra el aviso #tourError si el archivo de video no carga o el formato no es compatible.
- */
 function initTourVideo() {
   const player = document.getElementById('tourPlayer');
   const video = document.getElementById('tourVideo');
@@ -916,7 +1210,6 @@ function initTourVideo() {
     video.currentTime = ratio * video.duration;
   });
 
-  // Reproducir al entrar en pantalla, pausar al salir (ahorra datos y evita audio fuera de vista)
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -1000,7 +1293,7 @@ function syncNavHeight() {
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
-  initReveal(); // primero: así ninguna falla posterior deja contenido invisible
+  initReveal();
   bindSiteData();
   renderOpenStatus();
   setInterval(renderOpenStatus, 60 * 1000);
@@ -1008,23 +1301,28 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMenuGrid();
   renderCart();
   renderReviews();
-  initReveal(); // vuelve a observar las reseñas recién creadas
+  initReveal();
   initTourVideo();
+  syncMenuFromSheet(); // Actualiza precios, stock y configuración desde Google Sheets
 
   syncNavHeight();
   window.addEventListener('resize', syncNavHeight);
   if (document.fonts?.ready) document.fonts.ready.then(syncNavHeight);
 
-  const burgersCount = MENU_ITEMS.filter((i) => i.isBurger).length;
+  const getBurgersCount = () => MENU_ITEMS.filter((i) => i.isBurger).length;
 
   // Hero
   document.getElementById('prevHeroBurger')?.addEventListener('click', () => {
-    state.heroIndex = (state.heroIndex - 1 + burgersCount) % burgersCount;
+    const count = getBurgersCount();
+    if (!count) return;
+    state.heroIndex = (state.heroIndex - 1 + count) % count;
     renderHeroShowcase();
   });
 
   document.getElementById('nextHeroBurger')?.addEventListener('click', () => {
-    state.heroIndex = (state.heroIndex + 1) % burgersCount;
+    const count = getBurgersCount();
+    if (!count) return;
+    state.heroIndex = (state.heroIndex + 1) % count;
     renderHeroShowcase();
   });
 
@@ -1060,14 +1358,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Grilla de productos (Tamaño Doble/Triple y Agregar)
   document.getElementById('menuGrid')?.addEventListener('click', (e) => {
     const sizeBtn = e.target.closest('[data-size-id]');
-    if (sizeBtn) {
+    if (sizeBtn && !sizeBtn.disabled) {
       state.selectedSizes[sizeBtn.dataset.sizeId] = sizeBtn.dataset.size;
       updateSingleCard(sizeBtn.dataset.sizeId);
       return;
     }
 
     const addBtn = e.target.closest('[data-add-id]');
-    if (addBtn) addToCart(addBtn.dataset.addId, null, addBtn);
+    if (addBtn && !addBtn.disabled) addToCart(addBtn.dataset.addId, null, addBtn);
   });
 
   // Abrir / cerrar carrito
@@ -1076,11 +1374,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('closeCartBtn')?.addEventListener('click', closeCartDrawer);
   document.getElementById('cartOverlay')?.addEventListener('click', closeCartDrawer);
 
-  // Contenido del carrito: cantidades, quitar, sugerencias y aclaraciones
+  // Contenido del carrito
   const cartContainer = document.getElementById('cartItemsContainer');
   cartContainer?.addEventListener('click', (e) => {
     const qtyBtn = e.target.closest('[data-qty-key]');
-    if (qtyBtn) {
+    if (qtyBtn && !qtyBtn.disabled) {
       updateCartQty(qtyBtn.dataset.qtyKey, Number(qtyBtn.dataset.delta));
       return;
     }
@@ -1097,7 +1395,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (noteInput) setCartNote(noteInput.dataset.noteKey, noteInput.value);
   });
 
-  // Datos del cliente (se recuerdan para el próximo pedido)
+  // Datos del cliente
   const customer = loadCustomer();
   const nameEl = document.getElementById('customerName');
   const addressEl = document.getElementById('customerAddress');
@@ -1134,7 +1432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Enviar por WhatsApp
+  // Enviar por WhatsApp + Registrar venta en Google Sheets
   document.getElementById('sendWhatsappBtn')?.addEventListener('click', () => {
     if (state.cart.length === 0) {
       showToast('Agregá al menos un producto al pedido');
@@ -1142,10 +1440,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (!validateOrder()) return;
 
+    const meta = createOrderMeta();
     const totals = getTotals();
-    const text = buildWhatsAppOrderText();
+    const text = buildWhatsAppOrderText(meta);
     const url = `https://wa.me/${SITE.whatsappNumber}?text=${encodeURIComponent(text)}`;
+
+    logOrderToSheet(meta);
+
     track('send_whatsapp_order', {
+      order_id: meta.code,
       value: totals.total,
       currency: 'ARS',
       items: state.cart.reduce((acc, i) => acc + i.qty, 0),
@@ -1181,7 +1484,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('a')) setMobileMenu(false);
   });
 
-  // Teclado: Esc cierra carrito / menú, Tab queda dentro del carrito mientras está abierto
+  // Teclado
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (isDrawerOpen()) closeCartDrawer();

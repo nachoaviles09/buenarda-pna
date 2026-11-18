@@ -2118,3 +2118,53 @@ body.no-scroll .toast.is-visible {
     min-height: 140px;
   }
 }
+
+/* ==========================================================================
+   Control de stock ("Agotado por hoy")
+   ========================================================================== */
+
+.burger-card.is-sold-out {
+  opacity: 0.62;
+  border-color: var(--border-subtle);
+}
+
+.burger-card.is-sold-out:hover {
+  transform: none;
+  border-color: var(--border-subtle);
+  background: var(--bg-card);
+}
+
+.burger-card.is-sold-out .burger-card__visual {
+  filter: grayscale(0.85);
+}
+
+.burger-card__badge--soldout {
+  background: rgba(229, 72, 77, 0.16);
+  color: #ff8b8e;
+  border: 1px solid rgba(229, 72, 77, 0.4);
+}
+
+.btn-add:disabled,
+.btn--primary:disabled,
+.size-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-add:disabled {
+  background: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.cart-item.is-sold-out {
+  border-color: rgba(229, 72, 77, 0.55);
+}
+
+.cart-item__soldout-tag {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #ff8b8e;
+}

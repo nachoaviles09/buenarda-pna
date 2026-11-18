@@ -8,6 +8,18 @@
  */
 
 const SITE = {
+  // ... tus propiedades actuales (timeZone, hours, tripleExtraPrice, whatsappNumber, etc.) ...
+
+  // 1. Conexión a Google Sheets (pegar acá los enlaces CSV publicados)
+  sheet: {
+    menuCsvUrl: '',   // Pestaña "Carta" publicada como CSV
+    configCsvUrl: '', // Pestaña "Config" publicada como CSV (opcional)
+  },
+
+  // 4. Registro automático de ventas en Google Sheets (URL de implementación de Apps Script)
+  appsScriptUrl: 'https://script.google.com/macros/s/AKfycbypYYKhsqoLY1EnKm3BubgjJPvSL5luk_zSzAXEsyGK_f7DRAAWRiAHIdlGqSRbkAfy/exec',
+};
+
   // Número de WhatsApp que recibe los pedidos (código de país + área + número, sin "+" ni espacios).
   // ⚠️ Confirmar que sea el número oficial antes de publicar.
   whatsappNumber: '5493434717233',
