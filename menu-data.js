@@ -8,20 +8,19 @@
  */
 
 const SITE = {
-  // ... tus propiedades actuales (timeZone, hours, tripleExtraPrice, whatsappNumber, etc.) ...
-
-  // 1. Conexión a Google Sheets (pegar acá los enlaces CSV publicados)
+  // 1. Conexión a Google Sheets (enlaces publicados en formato CSV)
   sheet: {
-    menuCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=1624709794&single=true',   // Pestaña "Carta" publicada como CSV
-    configCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=0&single=true', // Pestaña "Config" publicada como CSV (opcional)
+    menuCsvUrl:
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pub?gid=1624709794&single=true&output=csv',
+    configCsvUrl:
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pub?gid=0&single=true&output=csv',
   },
 
-  // 4. Registro automático de ventas en Google Sheets (URL de implementación de Apps Script)
-  appsScriptUrl: 'https://script.google.com/macros/s/AKfycbypYYKhsqoLY1EnKm3BubgjJPvSL5luk_zSzAXEsyGK_f7DRAAWRiAHIdlGqSRbkAfy/exec',
-};
+  // 2. Registro automático de ventas en Google Sheets (URL de implementación de Apps Script)
+  appsScriptUrl:
+    'https://script.google.com/macros/s/AKfycbypYYKhsqoLY1EnKm3BubgjJPvSL5luk_zSzAXEsyGK_f7DRAAWRiAHIdlGqSRbkAfy/exec',
 
   // Número de WhatsApp que recibe los pedidos (código de país + área + número, sin "+" ni espacios).
-  // ⚠️ Confirmar que sea el número oficial antes de publicar.
   whatsappNumber: '5493434717233',
 
   // Recargo por pasar una burger de Doble a Triple
