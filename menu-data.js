@@ -12,8 +12,8 @@ const SITE = {
 
   // 1. Conexión a Google Sheets (pegar acá los enlaces CSV publicados)
   sheet: {
-    menuCsvUrl: '',   // Pestaña "Carta" publicada como CSV
-    configCsvUrl: '', // Pestaña "Config" publicada como CSV (opcional)
+    menuCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=1624709794&single=true',   // Pestaña "Carta" publicada como CSV
+    configCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=0&single=true', // Pestaña "Config" publicada como CSV (opcional)
   },
 
   // 4. Registro automático de ventas en Google Sheets (URL de implementación de Apps Script)
