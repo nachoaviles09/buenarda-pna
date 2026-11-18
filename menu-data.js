@@ -30,7 +30,7 @@ const SITE = {
     configCsvUrl:
       'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=0&single=true',
     // Opcional: si creás una pestaña "Envios" (columnas: zona, costo, activo), pegá acá su link publicado:
-    shippingCsvUrl: '',
+    shippingCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=1023038732&single=true',
   },
 
   // 2. Registro automático de ventas en Google Sheets (Apps Script)
