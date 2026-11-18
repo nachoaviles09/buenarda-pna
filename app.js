@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     forceRevealAll();
   }
 
-  // 2. Configuración segura con respaldos (funciona con cualquier versión de menu-data.js)
+  // 2. Configuración segura con respaldos (compatible con cualquier versión de menu-data.js)
   const rawSite = typeof SITE !== 'undefined' && SITE ? SITE : {};
   const config = {
     brand: Object.assign(
@@ -42,6 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fullAddress: 'Colón 696, E3100 Paraná, Entre Ríos',
         instagramUrl: 'https://www.instagram.com/buenardaparana/',
         mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Colon+696+Parana+Entre+Rios',
+        mapsEmbedUrl:
+          'https://www.google.com/maps?q=Col%C3%B3n+696,+Paran%C3%A1,+Entre+R%C3%ADos,+Argentina&output=embed',
         primaryColor: '#F5B700',
       },
       rawSite.brand || {}
@@ -142,16 +144,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Utilidades seguras
+  // Utilidades
   const $ = (id) => document.getElementById(id);
 
   const escapeHTML = (str) =>
     String(str == null ? '' : str)
-      .replace(/&/g, '\u0026amp;')
-      .replace(/</g, '\u0026lt;')
-      .replace(/>/g, '\u0026gt;')
-      .replace(/"/g, '\u0026quot;')
-      .replace(/'/g, '\u0026#39;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
   const formatARS = (amount) => {
     const n = Math.round(Number(amount) || 0);
@@ -199,44 +201,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Aplicar datos de marca y textos dinámicos
+  // Aplicar datos de marca y textos dinámicos (coincidiendo con data-bind de index.html)
   const applyBrandBindings = () => {
     if (config.brand.primaryColor) {
-      document.documentElement.style.setProperty('--accent', config.brand.primaryColor);
+      document.documentElement.style.setProperty('--cheddar', config.brand.primaryColor);
     }
 
-    document.querySelectorAll('[data-bind="brandName"]').forEach((el) => {
-      el.textContent = config.brand.name;
+    const streetOnly =
+      config.brand.streetOnly ||
+      (config.brand.shortAddress ? config.brand.shortAddress.split('—')[0].trim() : 'Colón 696');
+
+    const bindings = {
+      brandName: config.brand.name,
+      brandHandle: config.brand.handle,
+      brandHandleUpper: (config.brand.handle || '').toUpperCase(),
+      tagline: config.brand.tagline,
+      cityUpper: (config.brand.city || '').toUpperCase(),
+      streetOnly: streetOnly,
+      streetOnlyUpper: streetOnly.toUpperCase(),
+      shortAddress: config.brand.shortAddress,
+      fullAddress: config.brand.fullAddress || config.brand.shortAddress,
+      marqueeLocation: (config.brand.shortAddress || 'COLÓN 696 PARANÁ')
+        .replace(/—/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toUpperCase(),
+      hoursLabel: config.hours.label,
+      hoursFullLabel: config.hours.fullLabel,
+      igShort: config.instagramFollowers.short,
+      igLong: config.instagramFollowers.long,
+    };
+
+    Object.keys(bindings).forEach((key) => {
+      document.querySelectorAll('[data-bind="' + key + '"]').forEach((el) => {
+        if (bindings[key]) el.textContent = bindings[key];
+      });
     });
-    document.querySelectorAll('[data-bind="brandHandle"]').forEach((el) => {
-      el.textContent = config.brand.handle;
-    });
-    document.querySelectorAll('[data-bind="brandAddress"]').forEach((el) => {
-      el.textContent = config.brand.fullAddress || config.brand.shortAddress;
-    });
-    document.querySelectorAll('[data-bind="igShort"]').forEach((el) => {
-      el.textContent = config.instagramFollowers.short;
-    });
-    document.querySelectorAll('[data-bind="igLong"]').forEach((el) => {
-      el.textContent = config.instagramFollowers.long;
-    });
-    document.querySelectorAll('[data-bind="igLink"]').forEach((el) => {
+
+    document.querySelectorAll('[data-bind-href="instagramUrl"]').forEach((el) => {
       if (config.brand.instagramUrl) el.setAttribute('href', config.brand.instagramUrl);
     });
-    document.querySelectorAll('[data-bind="mapsLink"]').forEach((el) => {
+    document.querySelectorAll('[data-bind-href="mapsUrl"]').forEach((el) => {
       if (config.brand.mapsUrl) el.setAttribute('href', config.brand.mapsUrl);
     });
 
-    const hoursSummary = $('hoursSummaryText');
-    if (hoursSummary && config.hours.fullLabel) {
-      hoursSummary.textContent = config.hours.fullLabel;
+    const mapFrame = $('locationMapFrame');
+    if (mapFrame && config.brand.mapsEmbedUrl && mapFrame.src !== config.brand.mapsEmbedUrl) {
+      mapFrame.src = config.brand.mapsEmbedUrl;
     }
 
-    const aliasEl = $('transferAliasText');
-    const holderEl = $('transferHolderText');
-    const ticketAliasEl = $('ticketAliasText');
+    const burgersCountEl = $('heroBurgersCount');
+    if (burgersCountEl) {
+      const totalBurgers = menuItems.filter((i) => i.isBurger).length;
+      if (totalBurgers > 0) burgersCountEl.textContent = String(totalBurgers);
+    }
+
+    const aliasEl = $('aliasValueText');
+    const holderEl = $('aliasHolderText');
     if (aliasEl) aliasEl.textContent = config.payment.alias;
-    if (ticketAliasEl) ticketAliasEl.textContent = config.payment.alias;
     if (holderEl) {
       holderEl.textContent = config.payment.holder ? 'Titular: ' + config.payment.holder : '';
     }
@@ -310,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Ilustración vectorial de cada burger (y soporte para fotos reales)
+  // Ilustración vectorial de cada burger (con clases de animación de styles.css)
   const buildBurgerSVG = (item, size) => {
     const layers = item.layers || {};
     const isTriple = size === 'triple';
@@ -340,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Pan inferior
       '<path d="M56 144 Q56 164 130 164 Q204 164 204 144 Z" fill="#c97a2b"/>' +
       '<rect x="54" y="138" width="152" height="10" rx="5" fill="#dea04c"/>' +
-      // Lechuga / tomate si lleva
+      // Lechuga / tomate
       (layers.lettuce
         ? '<path d="M48 136 Q68 128 88 136 T128 136 T168 136 T212 136 L208 142 L52 142 Z" fill="#4aa848"/>'
         : '') +
@@ -359,14 +381,14 @@ document.addEventListener('DOMContentLoaded', () => {
       '"/>' +
       // Medallón 3 extra si es Triple
       (isTriple
-        ? '<g class="smash-extra-layer">' +
+        ? '<g class="svg-extra-patty">' +
           '<rect x="55" y="80" width="150" height="16" rx="8" fill="#4f2715"/>' +
           '<path d="M59 80 L201 80 L188 92 L164 83 L138 93 L112 83 L86 92 Z" fill="' +
           cheeseColor +
           '"/>' +
           '</g>'
         : '') +
-      // Toppings (bacon, huevo, pepinillos, cebollas)
+      // Toppings
       (layers.bacon
         ? '<path d="M62 ' +
           (isTriple ? 74 : 93) +
@@ -439,49 +461,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderVisualHTML = (item, size) => {
     if (!item.isBurger) {
-      return '<div class="item-emoji-visual" aria-hidden="true">' + escapeHTML(item.icon || '🍟') + '</div>';
+      return (
+        '<span style="font-size:4.4rem;line-height:1;filter:drop-shadow(0 12px 18px rgba(0,0,0,.55))" aria-hidden="true">' +
+        escapeHTML(item.icon || '🍟') +
+        '</span>'
+      );
     }
     if (config.usePhotos) {
       const ext = config.photoExtension || 'jpg';
       const mainSrc = 'assets/burgers/' + encodeURIComponent(item.id) + '.' + ext;
       const cutSrc = 'assets/burgers/' + encodeURIComponent(item.id) + '-corte.' + ext;
       return (
-        '<div class="photo-visual">' +
-        '<img class="photo-main" src="' +
+        '<div class="photo-stack">' +
+        '<img class="item-photo" src="' +
         mainSrc +
         '" alt="' +
         escapeHTML(item.name) +
-        '" loading="lazy" onerror="this.parentElement.innerHTML=this.dataset.fallback" data-fallback="' +
+        '" loading="lazy" onerror="this.parentElement.outerHTML=this.dataset.fallback" data-fallback="' +
         escapeHTML(buildBurgerSVG(item, size)) +
         '"/>' +
-        '<img class="photo-cut" src="' +
+        '<img class="item-photo item-photo--cut" src="' +
         cutSrc +
-        '" alt="" aria-hidden="true" loading="lazy" onerror="this.remove()"/>' +
+        '" alt="" aria-hidden="true" loading="lazy" onerror="this.nextElementSibling && this.nextElementSibling.remove(); this.remove()"/>' +
+        '<span class="photo-cut-pill">✂️ Ver corte</span>' +
         '</div>'
       );
     }
     return buildBurgerSVG(item, size);
   };
 
-  // Promo de la noche
+  // Promo de la noche (IDs de index.html: nightPromoCard, nightPromoBadge, nightPromoTitle, nightPromoSubtitle, nightPromoOldPrice, nightPromoPrice)
   const renderPromoBanner = () => {
-    const banner = $('promoBanner');
+    const banner = $('nightPromoCard');
     if (!banner) return;
     if (!config.promo || !config.promo.active || !config.promo.title) {
       banner.hidden = true;
       return;
     }
     banner.hidden = false;
-    if ($('promoBadge')) $('promoBadge').textContent = config.promo.badge || '🔥 PROMO DE LA NOCHE';
-    if ($('promoTitle')) $('promoTitle').textContent = config.promo.title;
-    if ($('promoText')) $('promoText').textContent = config.promo.subtitle || '';
-    if ($('promoPrice')) {
-      const priceStr = Number(config.promo.price) > 0 ? formatARS(config.promo.price) : '';
-      const oldStr =
-        Number(config.promo.oldPrice) > 0
-          ? ' <del style="opacity:.6;font-size:.85em">' + formatARS(config.promo.oldPrice) + '</del>'
-          : '';
-      $('promoPrice').innerHTML = priceStr + oldStr;
+    if ($('nightPromoBadge')) $('nightPromoBadge').textContent = config.promo.badge || '🔥 PROMO DE LA NOCHE';
+    if ($('nightPromoTitle')) $('nightPromoTitle').textContent = config.promo.title;
+    if ($('nightPromoSubtitle')) $('nightPromoSubtitle').textContent = config.promo.subtitle || '';
+    if ($('nightPromoOldPrice')) {
+      const hasOld = Number(config.promo.oldPrice) > 0;
+      $('nightPromoOldPrice').hidden = !hasOld;
+      if (hasOld) $('nightPromoOldPrice').textContent = formatARS(config.promo.oldPrice);
+    }
+    if ($('nightPromoPrice')) {
+      $('nightPromoPrice').textContent =
+        Number(config.promo.price) > 0 ? formatARS(config.promo.price) : '';
     }
   };
 
@@ -520,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Grilla de Carta
+  // Grilla de Carta (clases exactas de styles.css: burger-card__ingredients, size-selector, smash-burst)
   const getItemUnitPrice = (item, size) => {
     const base = Number(item.basePrice) || 0;
     if (item.isBurger && size === 'triple') {
@@ -529,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return base;
   };
 
-  const renderMenu = () => {
+  const renderMenu = (animateCards = false) => {
     const grid = $('menuGrid');
     if (!grid) return;
 
@@ -561,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = getItemUnitPrice(item, size);
 
         const sizeSelector = item.isBurger
-          ? '<div class="size-toggle" role="group" aria-label="Tamaño de medallones">' +
+          ? '<div class="size-selector" role="group" aria-label="Tamaño de medallones">' +
             '<button type="button" class="size-btn' +
             (size === 'doble' ? ' is-active' : '') +
             '" data-size-id="' +
@@ -583,10 +611,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return (
           '<article class="burger-card' +
+          (animateCards ? ' is-entering' : '') +
           (isSoldOut ? ' is-sold-out' : '') +
           '" data-card-id="' +
           escapeHTML(item.id) +
           '">' +
+          '<div>' +
           '<div class="burger-card__top">' +
           '<span class="burger-card__badge">' +
           escapeHTML(item.badge || (item.isBurger ? 'Smash' : 'Extra')) +
@@ -596,15 +626,17 @@ document.addEventListener('DOMContentLoaded', () => {
             : '') +
           '</div>' +
           '<div class="burger-card__visual">' +
+          (item.isBurger ? '<span class="smash-burst" aria-hidden="true"></span>' : '') +
           renderVisualHTML(item, size) +
           '</div>' +
-          '<div class="burger-card__body">' +
           '<h3 class="burger-card__title">' +
           escapeHTML(item.name) +
           '</h3>' +
-          '<p class="burger-card__desc">' +
+          '<p class="burger-card__ingredients">' +
           escapeHTML(item.ingredients || '') +
           '</p>' +
+          '</div>' +
+          '<div>' +
           sizeSelector +
           '<div class="burger-card__footer">' +
           '<strong class="burger-card__price">' +
@@ -625,8 +657,28 @@ document.addEventListener('DOMContentLoaded', () => {
       .join('');
   };
 
+  // Feedback visual al agregar al carrito
+  const pulseCartBadge = () => {
+    const badge = $('cartCountBadge');
+    if (!badge) return;
+    badge.classList.remove('is-bump');
+    void badge.offsetWidth;
+    badge.classList.add('is-bump');
+  };
+
+  const flashAddedButton = (btn) => {
+    if (!btn) return;
+    const prevText = btn.textContent;
+    btn.classList.add('is-added');
+    btn.textContent = '✓ Agregado';
+    setTimeout(() => {
+      btn.classList.remove('is-added');
+      btn.textContent = prevText;
+    }, 900);
+  };
+
   // Carrito y Checkout
-  const addToCart = (itemId, forcedSize) => {
+  const addToCart = (itemId, forcedSize, sourceBtn) => {
     const item = menuItems.find((i) => i.id === itemId);
     if (!item) return;
     if (item.available === false) {
@@ -659,10 +711,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveCart();
     renderCart();
+    pulseCartBadge();
+    flashAddedButton(sourceBtn);
     showToast('Agregado: ' + item.name + (item.isBurger ? ' (' + size.toUpperCase() + ')' : ''));
   };
 
-  const addPromoToCart = () => {
+  const addPromoToCart = (sourceBtn) => {
     if (!config.promo || !config.promo.active) return;
     const promoId = config.promo.id || 'promo-noche';
     const existing = state.cart.find((c) => c.id === promoId);
@@ -683,6 +737,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     saveCart();
     renderCart();
+    pulseCartBadge();
+    flashAddedButton(sourceBtn);
     openCart();
   };
 
@@ -697,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderDeliveryZones = () => {
-    const select = $('deliveryZone');
+    const select = $('deliveryZoneSelect');
     if (!select) return;
     if (!deliveryZones.length) {
       select.innerHTML = '<option value="">Envío a confirmar por WhatsApp</option>';
@@ -734,6 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mobileBar = $('mobileCartBar');
     if (mobileBar) {
       mobileBar.hidden = totalUnits === 0;
+      document.body.classList.toggle('has-cart-bar', totalUnits > 0);
       if ($('mobileCartCount')) {
         $('mobileCartCount').textContent =
           totalUnits + (totalUnits === 1 ? ' producto' : ' productos');
@@ -753,39 +810,45 @@ document.addEventListener('DOMContentLoaded', () => {
           .map((c) => {
             const sizeLabel =
               c.size === 'triple' ? ' · TRIPLE' : c.size === 'doble' ? ' · DOBLE' : '';
+            const lineSubtotal = c.unitPrice * c.qty;
             return (
               '<div class="cart-item" data-uid="' +
               escapeHTML(c.uid) +
               '">' +
-              '<div class="cart-item__head">' +
-              '<div>' +
-              '<strong>' +
+              '<div class="cart-item__row">' +
+              '<div class="cart-item__info">' +
+              '<h4>' +
               escapeHTML(c.name) +
               sizeLabel +
-              '</strong>' +
-              '<div class="cart-item__unit">' +
+              '</h4>' +
+              '<span class="cart-item__meta">' +
               formatARS(c.unitPrice) +
-              ' c/u</div>' +
+              ' c/u · Subtotal: ' +
+              formatARS(lineSubtotal) +
+              '</span>' +
               '</div>' +
-              '<div class="qty-controls">' +
+              '<div class="cart-item__controls">' +
               '<button type="button" class="qty-btn" data-qty-act="dec" data-uid="' +
               escapeHTML(c.uid) +
-              '">−</button>' +
-              '<span>' +
+              '" aria-label="Restar unidad">−</button>' +
+              '<strong>' +
               c.qty +
-              '</span>' +
+              '</strong>' +
               '<button type="button" class="qty-btn" data-qty-act="inc" data-uid="' +
               escapeHTML(c.uid) +
-              '">+</button>' +
+              '" aria-label="Sumar unidad">+</button>' +
+              '<button type="button" class="qty-btn qty-btn--remove" data-qty-act="del" data-uid="' +
+              escapeHTML(c.uid) +
+              '" aria-label="Eliminar producto">✕</button>' +
               '</div>' +
               '</div>' +
-              '<div class="cart-item__extras">' +
-              '<input type="text" class="cart-item__input" data-field="person" data-uid="' +
+              '<div class="cart-item__inputs">' +
+              '<input type="text" class="cart-item__person" data-field="person" data-uid="' +
               escapeHTML(c.uid) +
               '" value="' +
               escapeHTML(c.person || '') +
-              '" placeholder="👤 ¿Para quién es? (opcional)"/>' +
-              '<input type="text" class="cart-item__input" data-field="note" data-uid="' +
+              '" placeholder="👤 ¿De quién es?"/>' +
+              '<input type="text" class="cart-item__note" data-field="note" data-uid="' +
               escapeHTML(c.uid) +
               '" value="' +
               escapeHTML(c.note || '') +
@@ -796,28 +859,35 @@ document.addEventListener('DOMContentLoaded', () => {
           })
           .join('');
 
-        // Sugerencias de acompañamientos
+        // Sugerencias de acompañamientos (clases exactas de styles.css: upsell, upsell__title, upsell__item, upsell__emoji, upsell__info, upsell__btn)
         const upsells = config.upsellIds
           .map((id) => menuItems.find((m) => m.id === id && m.available !== false))
           .filter((m) => m && !state.cart.some((c) => c.id === m.id));
 
         const upsellHtml = upsells.length
-          ? '<div class="cart-upsell">' +
-            '<small>¿SUMÁS PAPAS O BEBIDA?</small>' +
-            '<div class="cart-upsell__list">' +
+          ? '<div class="upsell">' +
+            '<h4 class="upsell__title">🍟 ¿SUMÁS PAPAS O BEBIDA?</h4>' +
             upsells
               .map(
                 (u) =>
-                  '<button type="button" class="upsell-chip" data-add-id="' +
-                  escapeHTML(u.id) +
-                  '">+ ' +
+                  '<div class="upsell__item">' +
+                  '<span class="upsell__emoji">' +
+                  escapeHTML(u.icon || '🍟') +
+                  '</span>' +
+                  '<div class="upsell__info">' +
+                  '<strong>' +
                   escapeHTML(u.name) +
-                  ' (' +
+                  '</strong>' +
+                  '<small>' +
                   formatARS(u.basePrice) +
-                  ')</button>'
+                  '</small>' +
+                  '</div>' +
+                  '<button type="button" class="upsell__btn" data-add-id="' +
+                  escapeHTML(u.id) +
+                  '">+ Sumar</button>' +
+                  '</div>'
               )
               .join('') +
-            '</div>' +
             '</div>'
           : '';
 
@@ -831,13 +901,15 @@ document.addEventListener('DOMContentLoaded', () => {
       shippingRow.hidden = state.deliveryMode !== 'delivery';
     }
     if ($('cartShipping')) {
-      $('cartShipping').textContent = shipping == null ? 'A confirmar' : formatARS(shipping);
+      $('cartShipping').textContent =
+        shipping == null ? 'A confirmar por WhatsApp' : formatARS(shipping);
     }
     if ($('cartSubtotal')) $('cartSubtotal').textContent = formatARS(subtotal);
     if ($('cartTotal')) {
       const grandTotal = subtotal + (typeof shipping === 'number' ? shipping : 0);
       $('cartTotal').textContent =
-        formatARS(grandTotal) + (state.deliveryMode === 'delivery' && shipping == null ? ' + envío' : '');
+        formatARS(grandTotal) +
+        (state.deliveryMode === 'delivery' && shipping == null ? ' + envío' : '');
     }
   };
 
@@ -849,7 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
     drawer.removeAttribute('inert');
     drawer.setAttribute('aria-hidden', 'false');
     drawer.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
+    document.body.classList.add('no-scroll');
   };
 
   const closeCart = () => {
@@ -860,10 +932,10 @@ document.addEventListener('DOMContentLoaded', () => {
     drawer.setAttribute('aria-hidden', 'true');
     drawer.setAttribute('inert', '');
     overlay.hidden = true;
-    document.body.style.overflow = '';
+    document.body.classList.remove('no-scroll');
   };
 
-  // Armado de pedido WhatsApp, Ticket y Registro en Google Sheets
+  // Armado de pedido WhatsApp, Ticket Térmico y Registro en Google Sheets
   const getOrderTimestamp = () => {
     const now = new Date();
     const code = '#BN-' + Math.floor(1000 + Math.random() * 9000);
@@ -1036,60 +1108,104 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Modal Ticket Térmico (IDs y clases exactas de index.html y styles.css)
   const openTicketModal = (order, waUrl) => {
-    const modal = $('ticketModal');
-    if (!modal) return;
+    const overlay = $('ticketOverlay');
+    if (!overlay) return;
 
     if ($('ticketBrand')) $('ticketBrand').textContent = config.brand.name;
+    if ($('ticketAddress')) {
+      $('ticketAddress').textContent = config.brand.fullAddress || config.brand.shortAddress;
+    }
     if ($('ticketCode')) $('ticketCode').textContent = order.code;
     if ($('ticketDateTime')) $('ticketDateTime').textContent = order.fecha + ' · ' + order.hora;
-    if ($('ticketCustomer')) $('ticketCustomer').textContent = order.customer;
-    if ($('ticketMode')) {
-      $('ticketMode').textContent =
-        state.deliveryMode === 'delivery'
-          ? order.modalidadLabel + ' — ' + order.address
-          : order.modalidadLabel;
+
+    if ($('ticketCustomerInfo')) {
+      $('ticketCustomerInfo').innerHTML =
+        '<span><strong>CLIENTE:</strong> ' +
+        escapeHTML(order.customer) +
+        '</span>' +
+        '<span><strong>ENTREGA:</strong> ' +
+        escapeHTML(
+          state.deliveryMode === 'delivery'
+            ? order.modalidadLabel + ' — ' + order.address
+            : order.modalidadLabel
+        ) +
+        '</span>' +
+        '<span><strong>PAGO:</strong> ' +
+        escapeHTML(order.payment) +
+        '</span>' +
+        (order.notes
+          ? '<span><strong>NOTAS:</strong> ' + escapeHTML(order.notes) + '</span>'
+          : '');
     }
 
-    if ($('ticketItems')) {
-      $('ticketItems').innerHTML = state.cart
+    if ($('ticketItemsList')) {
+      $('ticketItemsList').innerHTML = state.cart
         .map((c) => {
           const sz = c.size === 'triple' ? ' (TRIPLE)' : c.size === 'doble' ? ' (DOBLE)' : '';
+          const personBadge = (c.person || '').trim()
+            ? '<span class="ticket-row__person">' + escapeHTML(c.person.trim()) + '</span>'
+            : '';
+          const subNote = (c.note || '').trim()
+            ? '<span class="ticket-row__sub">* ' + escapeHTML(c.note.trim()) + '</span>'
+            : '';
           return (
-            '<div class="ticket-item-row">' +
+            '<div class="ticket-row">' +
+            '<div class="ticket-row__main">' +
+            personBadge +
             '<span>' +
             c.qty +
             'x ' +
             escapeHTML(c.name) +
             sz +
             '</span>' +
-            '<strong>' +
+            subNote +
+            '</div>' +
+            '<span class="ticket-row__price">' +
             formatARS(c.unitPrice * c.qty) +
-            '</strong>' +
+            '</span>' +
             '</div>'
           );
         })
         .join('');
     }
 
-    if ($('ticketSubtotal')) $('ticketSubtotal').textContent = formatARS(order.subtotal);
-    if ($('ticketShippingRow')) {
-      $('ticketShippingRow').hidden = state.deliveryMode !== 'delivery';
-    }
-    if ($('ticketShipping')) {
-      $('ticketShipping').textContent =
-        order.shipping == null ? 'A confirmar' : formatARS(order.shipping);
-    }
-    if ($('ticketTotal')) $('ticketTotal').textContent = formatARS(order.total);
+    if ($('ticketTotalsList')) {
+      let totalsHtml =
+        '<div class="ticket-total-row">' +
+        '<span>SUBTOTAL</span>' +
+        '<span>' +
+        formatARS(order.subtotal) +
+        '</span>' +
+        '</div>';
 
-    if ($('ticketTransferWrap')) {
-      $('ticketTransferWrap').hidden = order.payment === 'Efectivo';
-    }
-    if ($('ticketWhatsappLink')) {
-      $('ticketWhatsappLink').setAttribute('href', waUrl);
+      if (state.deliveryMode === 'delivery') {
+        totalsHtml +=
+          '<div class="ticket-total-row">' +
+          '<span>ENVÍO</span>' +
+          '<span>' +
+          (order.shipping == null ? 'A CONFIRMAR' : formatARS(order.shipping)) +
+          '</span>' +
+          '</div>';
+      }
+
+      totalsHtml +=
+        '<div class="ticket-total-row ticket-total-row--grand">' +
+        '<span>TOTAL</span>' +
+        '<span>' +
+        formatARS(order.total) +
+        '</span>' +
+        '</div>';
+
+      $('ticketTotalsList').innerHTML = totalsHtml;
     }
 
-    modal.hidden = false;
+    if ($('ticketReopenWaBtn')) {
+      $('ticketReopenWaBtn').setAttribute('href', waUrl);
+    }
+
+    overlay.hidden = false;
   };
 
   const handleCheckout = () => {
@@ -1102,14 +1218,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const customer = (customerInput ? customerInput.value : '').trim();
     const address = (addressInput ? addressInput.value : '').trim();
 
+    if (customerInput) customerInput.classList.remove('is-invalid');
+    if (addressInput) addressInput.classList.remove('is-invalid');
+
     if (!customer) {
       showToast('Por favor ingresá tu nombre.');
-      if (customerInput) customerInput.focus();
+      if (customerInput) {
+        customerInput.classList.add('is-invalid');
+        customerInput.focus();
+      }
       return;
     }
     if (state.deliveryMode === 'delivery' && !address) {
       showToast('Por favor ingresá la dirección de entrega.');
-      if (addressInput) addressInput.focus();
+      if (addressInput) {
+        addressInput.classList.add('is-invalid');
+        addressInput.focus();
+      }
       return;
     }
 
@@ -1220,7 +1345,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (key === 'promo_titulo') config.promo.title = val;
             if (key === 'promo_subtitulo' || key === 'promo_texto') config.promo.subtitle = val;
             if (key === 'promo_precio' && !isNaN(Number(val))) config.promo.price = Number(val);
-            if (key === 'promo_precio_anterior' && !isNaN(Number(val))) config.promo.oldPrice = Number(val);
+            if (key === 'promo_precio_anterior' && !isNaN(Number(val))) {
+              config.promo.oldPrice = Number(val);
+            }
             if (key === 'usar_fotos') config.usePhotos = isYes(val);
           });
           applyBrandBindings();
@@ -1277,6 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (parsed.length > 0) {
             menuItems = parsed;
+            applyBrandBindings();
             renderHeroShowcase();
             renderMenu();
             renderCart();
@@ -1295,10 +1423,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const zones = rows
             .slice(1)
             .map((r, i) => {
-              const id = r[0] || 'zona-' + i;
-              const name = r[1] || '';
-              const rawCost = r[2] || '';
-              const active = r[3] == null || r[3] === '' ? true : !isNo(r[3]);
+              const hasIdCol = rows[0] && rows[0].length >= 4;
+              const id = hasIdCol ? r[0] || 'zona-' + i : 'zona-' + i;
+              const name = hasIdCol ? r[1] || '' : r[0] || '';
+              const rawCost = hasIdCol ? r[2] || '' : r[1] || '';
+              const activeCol = hasIdCol ? r[3] : r[2];
+              const active = activeCol == null || activeCol === '' ? true : !isNo(activeCol);
               if (!name || !active) return null;
               const numCost = Number(String(rawCost).replace(/[^\d]/g, ''));
               return {
@@ -1330,43 +1460,59 @@ document.addEventListener('DOMContentLoaded', () => {
     list.innerHTML = reviewsListData
       .map(
         (r) =>
-          '<article class="review-card">' +
-          '<p>“' +
+          '<figure class="review-card">' +
+          '<blockquote>“' +
           escapeHTML(r.text) +
-          '”</p>' +
-          '<strong>' +
+          '”</blockquote>' +
+          '<figcaption><strong>' +
           escapeHTML(r.name) +
-          '</strong>' +
-          '</article>'
+          '</strong></figcaption>' +
+          '</figure>'
       )
       .join('');
   };
 
   const initTourVideo = () => {
+    const player = $('tourPlayer');
     const video = $('tourVideo');
     if (!video) return;
     const playBtn = $('tourPlayBtn');
     const toggleBtn = $('tourToggleBtn');
     const soundBtn = $('tourSoundBtn');
     const soundLabel = $('tourSoundLabel');
+    const progress = $('tourProgress');
     const progressFill = $('tourProgressFill');
     const tourError = $('tourError');
 
+    const syncPlayerUI = () => {
+      if (player) {
+        player.classList.toggle('is-playing', !video.paused && !video.ended);
+        player.classList.toggle('is-unmuted', !video.muted);
+      }
+      if (toggleBtn) {
+        toggleBtn.setAttribute('aria-label', video.paused ? 'Reproducir video' : 'Pausar video');
+      }
+    };
+
+    video.addEventListener('play', syncPlayerUI);
+    video.addEventListener('pause', syncPlayerUI);
+    video.addEventListener('volumechange', syncPlayerUI);
+
     video.addEventListener('error', () => {
       if (tourError) tourError.hidden = false;
-      if (playBtn) playBtn.hidden = true;
+      if (player) player.classList.add('has-error');
     });
 
     const togglePlay = () => {
       if (video.paused) {
         video.play().catch(() => {});
-        if (playBtn) playBtn.hidden = true;
       } else {
         video.pause();
-        if (playBtn) playBtn.hidden = false;
       }
+      syncPlayerUI();
     };
 
+    video.addEventListener('click', togglePlay);
     if (playBtn) playBtn.addEventListener('click', togglePlay);
     if (toggleBtn) toggleBtn.addEventListener('click', togglePlay);
 
@@ -1377,14 +1523,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (soundLabel) {
           soundLabel.textContent = video.muted ? 'Activar sonido' : 'Silenciar';
         }
+        syncPlayerUI();
       });
     }
 
     video.addEventListener('timeupdate', () => {
-      if (progressFill && video.duration) {
-        progressFill.style.width = (video.currentTime / video.duration) * 100 + '%';
+      if (video.duration) {
+        const pct = (video.currentTime / video.duration) * 100;
+        if (progressFill) progressFill.style.width = pct + '%';
+        if (progress) progress.setAttribute('aria-valuenow', String(Math.round(pct)));
       }
     });
+
+    if (progress) {
+      progress.addEventListener('click', (e) => {
+        if (!video.duration) return;
+        const rect = progress.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        video.currentTime = ratio * video.duration;
+      });
+    }
+
+    syncPlayerUI();
   };
 
   // Eventos de interfaz
@@ -1394,6 +1554,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const nav = $('navLinks');
         const opened = nav.classList.toggle('is-open');
         $('mobileMenuBtn').setAttribute('aria-expanded', String(opened));
+      });
+      $('navLinks').addEventListener('click', (e) => {
+        if (e.target.closest('a')) {
+          $('navLinks').classList.remove('is-open');
+          $('mobileMenuBtn').setAttribute('aria-expanded', 'false');
+        }
       });
     }
 
@@ -1418,13 +1584,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     if ($('addHeroBurgerBtn')) {
-      $('addHeroBurgerBtn').addEventListener('click', () => {
+      $('addHeroBurgerBtn').addEventListener('click', (e) => {
         const burgers = getHeroBurgers();
-        if (burgers[state.heroIndex]) addToCart(burgers[state.heroIndex].id, 'doble');
+        if (burgers[state.heroIndex]) {
+          addToCart(burgers[state.heroIndex].id, 'doble', e.currentTarget);
+        }
       });
     }
-    if ($('promoActionBtn')) {
-      $('promoActionBtn').addEventListener('click', addPromoToCart);
+    if ($('addPromoBtn')) {
+      $('addPromoBtn').addEventListener('click', (e) => addPromoToCart(e.currentTarget));
     }
 
     if ($('filterTabs')) {
@@ -1435,14 +1603,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#filterTabs .filter-tab').forEach((btn) => {
           btn.classList.toggle('is-active', btn === tab);
         });
-        renderMenu();
+        renderMenu(true);
       });
     }
 
     if ($('menuSearchInput')) {
       $('menuSearchInput').addEventListener('input', (e) => {
         state.query = e.target.value || '';
-        renderMenu();
+        renderMenu(false);
       });
     }
 
@@ -1450,13 +1618,22 @@ document.addEventListener('DOMContentLoaded', () => {
       $('menuGrid').addEventListener('click', (e) => {
         const sizeBtn = e.target.closest('[data-size-id]');
         if (sizeBtn) {
-          state.cardSizes[sizeBtn.dataset.sizeId] = sizeBtn.dataset.size;
-          renderMenu();
+          const id = sizeBtn.dataset.sizeId;
+          const nextSize = sizeBtn.dataset.size;
+          state.cardSizes[id] = nextSize;
+          renderMenu(false);
+          if (nextSize === 'triple') {
+            const card = $('menuGrid').querySelector('[data-card-id="' + CSS.escape(id) + '"]');
+            if (card) {
+              card.classList.add('is-smashing');
+              setTimeout(() => card.classList.remove('is-smashing'), 650);
+            }
+          }
           return;
         }
         const addBtn = e.target.closest('[data-add-id]');
         if (addBtn) {
-          addToCart(addBtn.dataset.addId);
+          addToCart(addBtn.dataset.addId, null, addBtn);
         }
       });
     }
@@ -1472,8 +1649,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (qtyBtn) {
           const idx = state.cart.findIndex((c) => c.uid === qtyBtn.dataset.uid);
           if (idx >= 0) {
-            if (qtyBtn.dataset.qtyAct === 'inc') {
+            const act = qtyBtn.dataset.qtyAct;
+            if (act === 'inc') {
               state.cart[idx].qty += 1;
+            } else if (act === 'del') {
+              state.cart.splice(idx, 1);
             } else {
               state.cart[idx].qty -= 1;
               if (state.cart[idx].qty <= 0) state.cart.splice(idx, 1);
@@ -1485,7 +1665,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const upsellBtn = e.target.closest('[data-add-id]');
         if (upsellBtn) {
-          addToCart(upsellBtn.dataset.addId);
+          addToCart(upsellBtn.dataset.addId, null, upsellBtn);
         }
       });
 
@@ -1509,14 +1689,14 @@ document.addEventListener('DOMContentLoaded', () => {
           b.setAttribute('aria-pressed', String(active));
         });
         const isDel = state.deliveryMode === 'delivery';
-        if ($('deliveryZoneWrap')) $('deliveryZoneWrap').hidden = !isDel;
+        if ($('deliveryZoneSelect')) $('deliveryZoneSelect').hidden = !isDel;
         if ($('customerAddress')) $('customerAddress').hidden = !isDel;
         renderCart();
       });
     });
 
-    if ($('deliveryZone')) {
-      $('deliveryZone').addEventListener('change', (e) => {
+    if ($('deliveryZoneSelect')) {
+      $('deliveryZoneSelect').addEventListener('change', (e) => {
         state.selectedZoneId = e.target.value;
         renderCart();
       });
@@ -1524,20 +1704,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ($('paymentMethod')) {
       $('paymentMethod').addEventListener('change', (e) => {
-        const box = $('transferBox');
+        const box = $('aliasCard');
         if (box) box.hidden = e.target.value === 'Efectivo';
       });
     }
 
     if ($('copyAliasBtn')) {
-      $('copyAliasBtn').addEventListener('click', () =>
-        copyText(config.payment.alias, 'Alias copiado: ' + config.payment.alias)
-      );
-    }
-    if ($('ticketCopyAliasBtn')) {
-      $('ticketCopyAliasBtn').addEventListener('click', () =>
-        copyText(config.payment.alias, 'Alias copiado: ' + config.payment.alias)
-      );
+      $('copyAliasBtn').addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        copyText(config.payment.alias, 'Alias copiado: ' + config.payment.alias);
+        btn.classList.add('is-copied');
+        const prev = btn.textContent;
+        btn.textContent = '✓ ¡Copiado!';
+        setTimeout(() => {
+          btn.classList.remove('is-copied');
+          btn.textContent = prev;
+        }, 1600);
+      });
     }
 
     if ($('copyOrderBtn')) {
@@ -1557,7 +1740,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ($('closeTicketBtn')) {
       $('closeTicketBtn').addEventListener('click', () => {
-        if ($('ticketModal')) $('ticketModal').hidden = true;
+        if ($('ticketOverlay')) $('ticketOverlay').hidden = true;
+      });
+    }
+    if ($('ticketOverlay')) {
+      $('ticketOverlay').addEventListener('click', (e) => {
+        if (e.target === $('ticketOverlay')) {
+          $('ticketOverlay').hidden = true;
+        }
       });
     }
   };
@@ -1567,7 +1757,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateOpenStatus();
   renderPromoBanner();
   renderHeroShowcase();
-  renderMenu();
+  renderMenu(true);
   renderDeliveryZones();
   renderCart();
   renderReviews();
