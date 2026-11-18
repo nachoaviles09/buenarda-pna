@@ -1,26 +1,43 @@
 'use strict';
 
 /**
- * BUENARDA (@buenardaparana) — DATOS EDITABLES
+ * BUENARDA (@buenardaparana) — DATOS EDITABLES Y PLANTILLA AUTOGESTIONABLE
  * ----------------------------------------------------------------------------
- * Este es el ÚNICO archivo que hace falta tocar para cambiar precios, productos,
- * horarios, costo de envío, número de WhatsApp o reseñas. No hace falta tocar app.js.
+ * Todo se puede actualizar en vivo desde Google Sheets (pestañas Config, Carta y Envios).
+ * Si la planilla no tiene conexión o una pestaña está vacía, se usan estos valores de respaldo.
  */
 
 const SITE = {
-  // 1. Conexión a Google Sheets (enlaces publicados en formato CSV)
-  sheet: {
-    menuCsvUrl:
-      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pub?gid=1624709794&single=true&output=csv',
-    configCsvUrl:
-      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pub?gid=0&single=true&output=csv',
+  // Identidad de marca (adaptable a cualquier local desde Google Sheets Config)
+  brand: {
+    name: 'BUENARDA',
+    handle: '@buenardaparana',
+    tagline: 'Hamburguesas de alta calidad | 100% Carne',
+    city: 'Paraná · Entre Ríos',
+    streetOnly: 'Colón 696',
+    shortAddress: 'Colón 696 — Paraná',
+    fullAddress: 'Colón 696, E3100 Paraná, Entre Ríos',
+    instagramUrl: 'https://www.instagram.com/buenardaparana/',
+    mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Colon+696+Parana+Entre+Rios',
+    mapsEmbedUrl: 'https://www.google.com/maps?q=Col%C3%B3n+696,+Paran%C3%A1,+Entre+R%C3%ADos,+Argentina&output=embed',
+    primaryColor: '#F5B700',
   },
 
-  // 2. Registro automático de ventas en Google Sheets (URL de implementación de Apps Script)
+  // 1. Conexión a Google Sheets (enlaces publicados en la web)
+  sheet: {
+    menuCsvUrl:
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=1624709794&single=true',
+    configCsvUrl:
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=0&single=true',
+    // Opcional: si creás una pestaña "Envios" (columnas: zona, costo, activo), pegá acá su link publicado:
+    shippingCsvUrl: '',
+  },
+
+  // 2. Registro automático de ventas en Google Sheets (Apps Script)
   appsScriptUrl:
     'https://script.google.com/macros/s/AKfycbypYYKhsqoLY1EnKm3BubgjJPvSL5luk_zSzAXEsyGK_f7DRAAWRiAHIdlGqSRbkAfy/exec',
 
-  // Número de WhatsApp que recibe los pedidos (código de país + área + número, sin "+" ni espacios).
+  // Número de WhatsApp que recibe los pedidos (código de país + área + número, sin "+" ni espacios)
   whatsappNumber: '5493434717233',
 
   // Recargo por pasar una burger de Doble a Triple
@@ -28,27 +45,60 @@ const SITE = {
 
   // Horarios. Días: 0=Domingo, 1=Lunes ... 6=Sábado. Horas en formato 24 hs (24 = medianoche).
   timeZone: 'America/Argentina/Buenos_Aires',
-  hours: { openDays: [3, 4, 5, 6, 0], open: 20, close: 24 },
+  hours: {
+    openDays: [3, 4, 5, 6, 0],
+    open: 20,
+    close: 24,
+    label: 'Mié a Dom 20:00 a 00:00 hs',
+    fullLabel: 'Miércoles a Domingo · 20:00 a 00:00 hs',
+  },
 
-  // Envío. fee: número (ej. 1500) para sumarlo al total, o null para mostrar "A confirmar por WhatsApp".
+  // Envío fijo de respaldo (se usa solo si no hay zonas activas en DELIVERY_ZONES)
   delivery: { fee: null },
 
-  // Instagram (se muestran en la portada y en la sección de ubicación)
+  // Datos de Transferencia / Mercado Pago (se muestran en 1 toque al elegir Transferencia)
+  payment: {
+    alias: 'buenarda.parana.mp',
+    holder: 'Buenarda Paraná',
+  },
+
+  // Combo / Promo destacada de la noche (editable o desactivable desde Config en Sheets)
+  promo: {
+    active: true,
+    id: 'promo-noche',
+    badge: '🔥 PROMO DE LA NOCHE',
+    title: 'COMBO BUENARDA NIGHT',
+    subtitle: '2x 7th Street Doble + 1x Papas Cheddar & Bacon',
+    price: 26900,
+    oldPrice: 30500,
+    icon: '🔥',
+  },
+
+  // Instagram
   instagramFollowers: { short: '+17.5K', long: '17,5 mil' },
 
-  // Fotos de las burgers: poner true y subir las fotos a assets/burgers/ con el id del producto
-  // como nombre (ej. assets/burgers/7th-street.jpg). Si falta alguna, se usa la ilustración.
+  // Fotos reales de las burgers: poner true (o "si" en Config) y subir fotos a assets/burgers/<id>.jpg
+  // Si además subís assets/burgers/<id>-corte.jpg, al pasar el cursor o mantener presionado muestra el corte.
   usePhotos: false,
   photoExtension: 'jpg',
 
-  // Productos que se sugieren en el carrito ("Sumá papas y bebida")
+  // Productos sugeridos en el carrito ("Sumá papas y bebida")
   upsellIds: ['papas-clasicas', 'papas-cheddar-bacon', 'gaseosa-lata'],
 };
 
 /**
- * Reseñas REALES de clientes (se muestran en una sección automática).
- * Si la lista está vacía, la sección no aparece.
- * Formato: { name: 'Nombre', text: 'Comentario textual', source: 'Google / Instagram' }
+ * Zonas de Delivery con tarifa automática.
+ * También se pueden administrar desde la pestaña "Envios" de Google Sheets (columnas: zona | costo | activo).
+ */
+const DELIVERY_ZONES = [
+  { id: 'centro', name: 'Centro / Microcentro (hasta 15 cuadras)', fee: 1500 },
+  { id: 'parque-costanera', name: 'Parque Urquiza / Costanera / Cinco Esquinas', fee: 1800 },
+  { id: 'barrios-cercanos', name: 'Zona Sur / La Floresta / San Agustín / Villa Sarmiento', fee: 2200 },
+  { id: 'otra-zona', name: 'Otra zona de Paraná (A confirmar por WhatsApp)', fee: null },
+];
+
+/**
+ * Reseñas REALES de clientes (si está vacío, la sección no aparece).
  */
 const REVIEWS = [];
 

@@ -2168,3 +2168,718 @@ body.no-scroll .toast.is-visible {
   font-weight: 700;
   color: #ff8b8e;
 }
+
+/* ==========================================================================
+   v4 — Iluminación ambiental, animación física Smash, Promo de la Noche,
+   corte transversal de fotos, pedido grupal, Alias 1-clic y Ticket Térmico
+   ========================================================================== */
+
+:root {
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---- Iluminación ambiental en Hero y Story Card ---- */
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero__ambient {
+  position: absolute;
+  top: -120px;
+  right: -80px;
+  width: 620px;
+  height: 620px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--cheddar-soft) 0%, rgba(245, 183, 0, 0.04) 42%, transparent 70%);
+  filter: blur(28px);
+  pointer-events: none;
+  animation: ambientPulse 6s ease-in-out infinite alternate;
+}
+
+@keyframes ambientPulse {
+  0% {
+    transform: scale(0.95) translate(0, 0);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.08) translate(-18px, 14px);
+    opacity: 1;
+  }
+}
+
+.story-card {
+  overflow: hidden;
+  border-color: rgba(245, 183, 0, 0.35);
+}
+
+.story-card__glow {
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 183, 0, 0.28) 0%, rgba(245, 183, 0, 0.06) 52%, transparent 74%);
+  filter: blur(18px);
+  pointer-events: none;
+  animation: storyGlow 4.2s ease-in-out infinite alternate;
+}
+
+@keyframes storyGlow {
+  from {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+
+.story-card__visual {
+  position: relative;
+  z-index: 1;
+}
+
+.story-card__visual svg {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.story-card:hover .story-card__visual svg {
+  transform: translateY(-4px) scale(1.03);
+}
+
+/* ---- Cinta cinética urbana (pausa al pasar cursor) ---- */
+.marquee {
+  border-top: 1px solid #0d0d0d;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.marquee:hover .marquee__track {
+  animation-play-state: paused;
+}
+
+.marquee__group span {
+  font-weight: 800;
+}
+
+/* ---- Banner Promo / Combo de la Noche ---- */
+.night-promo {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  padding: 1.35rem 1.65rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(245, 183, 0, 0.55);
+  background: linear-gradient(135deg, #1e190c 0%, #141414 55%, #1c1609 100%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.night-promo__glow {
+  position: absolute;
+  top: -40%;
+  left: -10%;
+  width: 340px;
+  height: 240px;
+  background: radial-gradient(circle, var(--cheddar-soft) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.night-promo__content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 240px;
+}
+
+.night-promo__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  background: var(--cheddar);
+  color: #0d0d0d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+  animation: promoPulse 2s ease-in-out infinite;
+}
+
+@keyframes promoPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 183, 0, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(245, 183, 0, 0);
+  }
+}
+
+.night-promo__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 3.2vw, 2.4rem);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--text-main);
+  margin: 0 0 0.3rem;
+}
+
+.night-promo__subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.night-promo__action {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  flex-wrap: wrap;
+}
+
+.night-promo__prices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.night-promo__old {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.night-promo__price {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--cheddar);
+}
+
+@media (max-width: 640px) {
+  .night-promo {
+    padding: 1.15rem 1.2rem;
+  }
+  .night-promo__action {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .night-promo__prices {
+    align-items: flex-start;
+  }
+}
+
+/* ---- Animación física de "SMASH" en burgers ---- */
+.burger-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.burger-card__visual {
+  position: relative;
+}
+
+.burger-card__visual svg {
+  transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.burger-card:hover .burger-card__visual svg {
+  transform: translateY(-4px) scale(1.04);
+}
+
+.smash-burst {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid var(--cheddar);
+  background: radial-gradient(circle, rgba(245, 183, 0, 0.45) 0%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.3);
+}
+
+.burger-card.is-smashing .smash-burst {
+  animation: smashShockwave 0.62s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.burger-card.is-smashing .burger-card__visual svg {
+  animation: burgerSmashBounce 0.58s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.burger-card.is-smashing .svg-extra-patty {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: extraPattyDrop 0.56s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes smashShockwave {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+@keyframes burgerSmashBounce {
+  0% {
+    transform: scale(1, 1);
+  }
+  28% {
+    transform: scale(1.09, 0.86) translateY(5px);
+  }
+  58% {
+    transform: scale(0.97, 1.05) translateY(-4px);
+  }
+  100% {
+    transform: scale(1, 1) translateY(0);
+  }
+}
+
+@keyframes extraPattyDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-42px) scale(1.18, 0.78);
+  }
+  52% {
+    opacity: 1;
+    transform: translateY(3px) scale(1.08, 0.84);
+  }
+  78% {
+    transform: translateY(-2px) scale(0.98, 1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+/* ---- Corte transversal en fotos reales (hover / mantener presionado) ---- */
+.photo-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.item-photo--cut {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(1.04);
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.photo-stack:hover .item-photo--cut,
+.photo-stack.is-cut-preview .item-photo--cut {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.photo-cut-pill {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 2;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(13, 13, 13, 0.82);
+  border: 1px solid rgba(245, 183, 0, 0.45);
+  color: var(--cheddar);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+/* ---- Pedido grupal ("¿De quién es cada burger?") ---- */
+.cart-item__inputs {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 0.45rem;
+}
+
+.cart-item__person {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  border: 1px dashed rgba(245, 183, 0, 0.45);
+  background: rgba(245, 183, 0, 0.05);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.cart-item__person::placeholder {
+  color: rgba(245, 183, 0, 0.72);
+}
+
+.cart-item__person:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--cheddar);
+  background: #101010;
+}
+
+@media (max-width: 400px) {
+  .cart-item__inputs {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Tarjeta de Alias bancario con copiado en 1 toque ---- */
+.alias-card {
+  padding: 0.72rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(245, 183, 0, 0.45);
+  background: linear-gradient(145deg, rgba(245, 183, 0, 0.12), rgba(245, 183, 0, 0.03));
+  animation: aliasSlideIn 0.25s ease;
+}
+
+@keyframes aliasSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alias-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.alias-card__label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--cheddar);
+}
+
+.alias-card__value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-main);
+  word-break: break-all;
+}
+
+.alias-card__holder {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.alias-card__copy {
+  flex-shrink: 0;
+  padding: 0.46rem 0.72rem;
+  border-radius: 7px;
+  border: 1px solid var(--cheddar);
+  background: var(--cheddar);
+  color: #0d0d0d;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.alias-card__copy:hover {
+  background: var(--cheddar-hover);
+  transform: translateY(-1px);
+}
+
+.alias-card__copy.is-copied {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #062110;
+}
+
+.alias-card__hint {
+  margin: 0.5rem 0 0;
+  padding-top: 0.45rem;
+  border-top: 1px dashed rgba(245, 183, 0, 0.25);
+  font-size: 0.73rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Modal Ticket de Comanda Térmica Animado
+   ========================================================================== */
+
+.ticket-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.84);
+  backdrop-filter: blur(8px);
+  overflow-y: auto;
+}
+
+.ticket-printer {
+  width: min(410px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: auto;
+}
+
+.ticket-printer__slot {
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border-radius: 12px 12px 4px 4px;
+  background: linear-gradient(180deg, #242424 0%, #111111 100%);
+  border: 1px solid var(--border-strong);
+  border-bottom: 4px solid #050505;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--cheddar);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+  position: relative;
+  z-index: 2;
+}
+
+.thermal-ticket {
+  position: relative;
+  width: 93%;
+  padding: 1.35rem 1.2rem 1.45rem;
+  background: #f6f3ea;
+  color: #161616;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.75);
+  transform-origin: top center;
+  animation: ticketPrint 0.68s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Borde dentado inferior tipo papel térmico */
+.thermal-ticket::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 10px;
+  background:
+    linear-gradient(-45deg, transparent 7px, #f6f3ea 7px),
+    linear-gradient(45deg, transparent 7px, #f6f3ea 7px);
+  background-size: 14px 10px;
+  background-repeat: repeat-x;
+}
+
+@keyframes ticketPrint {
+  0% {
+    opacity: 0;
+    transform: translateY(-48px) scaleY(0.72);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(4px) scaleY(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.thermal-ticket__head {
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.thermal-ticket__brand {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 0.95;
+  letter-spacing: 0.08em;
+  color: #0d0d0d;
+}
+
+.thermal-ticket__sub {
+  display: block;
+  font-size: 0.7rem;
+  color: #4a4a4a;
+  margin-bottom: 0.55rem;
+}
+
+.thermal-ticket__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  background: #eae5d7;
+  border-radius: 4px;
+  font-size: 0.72rem;
+}
+
+.thermal-ticket__customer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  font-size: 0.74rem;
+  color: #262626;
+}
+
+.thermal-ticket__divider {
+  margin: 0.55rem 0;
+  color: #8c887d;
+  overflow: hidden;
+  white-space: nowrap;
+  letter-spacing: -0.04em;
+}
+
+.thermal-ticket__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ticket-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.ticket-row__main {
+  flex: 1;
+}
+
+.ticket-row__person {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  background: #161616;
+  color: #f6f3ea;
+  font-size: 0.66rem;
+  font-weight: 700;
+  margin-right: 0.25rem;
+}
+
+.ticket-row__sub {
+  display: block;
+  font-size: 0.69rem;
+  color: #55524a;
+}
+
+.ticket-row__price {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.thermal-ticket__totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ticket-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+}
+
+.ticket-total-row--grand {
+  margin-top: 0.25rem;
+  padding-top: 0.3rem;
+  border-top: 1.5px dashed #161616;
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.thermal-ticket__stamp {
+  margin: 0.95rem auto 0.65rem;
+  width: fit-content;
+  padding: 0.35rem 0.85rem;
+  border: 2.5px solid #c92a2a;
+  border-radius: 6px;
+  color: #c92a2a;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  letter-spacing: 0.1em;
+  transform: rotate(-4deg);
+  opacity: 0;
+  animation: stampSlam 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.42s forwards;
+}
+
+@keyframes stampSlam {
+  0% {
+    opacity: 0;
+    transform: rotate(-10deg) scale(2.1);
+  }
+  75% {
+    opacity: 1;
+    transform: rotate(-3deg) scale(0.94);
+  }
+  100% {
+    opacity: 0.92;
+    transform: rotate(-4deg) scale(1);
+  }
+}
+
+.thermal-ticket__footer {
+  margin: 0;
+  text-align: center;
+  font-size: 0.68rem;
+  color: #55524a;
+}
+
+.ticket-printer__actions {
+  width: 93%;
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__ambient,
+  .story-card__glow,
+  .night-promo__badge,
+  .burger-card.is-smashing .smash-burst,
+  .burger-card.is-smashing .burger-card__visual svg,
+  .burger-card.is-smashing .svg-extra-patty,
+  .thermal-ticket,
+  .thermal-ticket__stamp {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
