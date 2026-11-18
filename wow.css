@@ -1,1 +1,207 @@
+/* ==========================================================================
 
+BUENARDA · CAPA "NEÓN + LAB" (wow.css)
+
+--------------------------------------------------------------------------
+
+100% aditiva: no redefine ningún selector existente. Todas las clases
+
+empiezan con "wow-". Para quitarla: borrá la línea <link ... wow.css> y
+
+la línea <script ... wow.js> de index.html.
+
+========================================================================== */
+
+
+
+:root {
+
+--wow-green: #5dffa3;
+
+--wow-red: #ff5d62;
+
+--wow-ink: #fff3c4;
+
+}
+
+
+
+/* ---------- Aparición de elementos inyectados (no usa tu .reveal) -------- */
+
+.js .wow-reveal:not(.is-in) {
+
+opacity: 0;
+
+transform: translateY(24px);
+
+}
+
+.wow-reveal {
+
+transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+
+}
+
+
+
+/* ---------- Barra de progreso con mini burger ---------------------------- */
+
+.wow-progress {
+
+position: fixed;
+
+left: 0;
+
+right: 0;
+
+top: 0;
+
+height: 3px;
+
+z-index: 60;
+
+pointer-events: none;
+
+background: transparent;
+
+}
+
+.wow-progress__bar {
+
+position: absolute;
+
+inset: 0;
+
+transform-origin: left center;
+
+transform: scaleX(var(--wow-p, 0));
+
+background: linear-gradient(90deg, #c97a2b, #f5b700 60%, #ffe28a);
+
+box-shadow: 0 0 10px rgba(245, 183, 0, 0.7);
+
+}
+
+.wow-progress__burger {
+
+position: absolute;
+
+top: -2px;
+
+left: calc(var(--wow-p, 0) * 100%);
+
+width: 22px;
+
+height: 22px;
+
+margin-left: -11px;
+
+filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+
+opacity: calc(var(--wow-p, 0) * 40);
+
+max-opacity: 1;
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+.wow-progress__burger {
+
+display: none;
+
+}
+
+}
+
+
+
+/* ---------- Luz que sigue al cursor (solo mouse) ------------------------- */
+
+.wow-light {
+
+position: fixed;
+
+inset: 0;
+
+z-index: 45;
+
+pointer-events: none;
+
+opacity: 0;
+
+transition: opacity 0.4s ease;
+
+background: radial-gradient(
+
+460px circle at var(--lx, 50%) var(--ly, 50%),
+
+rgba(245, 183, 0, 0.1),
+
+rgba(245, 183, 0, 0.035) 42%,
+
+transparent 68%
+
+);
+
+mix-blend-mode: screen;
+
+}
+
+.wow-light.is-on {
+
+opacity: 1;
+
+}
+
+
+
+/* ---------- Tilt 3D + brillo en las burgers de la carta ------------------ */
+
+@media (hover: hover) and (pointer: fine) {
+
+.burger-card:not(.is-sold-out) .burger-card__visual {
+
+transition: transform 0.18s ease-out;
+
+transform-style: preserve-3d;
+
+border-radius: 16px;
+
+background-image: radial-gradient(
+
+circle at var(--wx, 50%) var(--wy, 50%),
+
+rgba(245, 183, 0, calc(0.16 * var(--wo, 0))),
+
+transparent 62%
+
+);
+
+}
+
+.burger-card:not(.is-sold-out) .burger-card__visual.is-tilting {
+
+transition: transform 0.06s linear;
+
+}
+
+}
+
+
+
+/* ---------- Migas de cheddar al agregar ---------------------------------- */
+
+.wow-crumb {
+
+position: fixed;
+
+z-index: 200;
+
+pointer-events: none;
+
+border-radius: 50% 40% 55% 45%;
+
+will-change: transform, opacity;
+
+} 
