@@ -82,10 +82,14 @@ function formatARS(amount) {
 }
 
 function escapeHTML(str) {
-  return String(str).replace(
-    /[&<>"']/g,
-    (ch) => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[ch])
-  );
+  const map = {
+    '&': '\u0026amp;',
+    '<': '\u0026lt;',
+    '>': '\u0026gt;',
+    '"': '\u0026quot;',
+    "'": '\u0026#39;',
+  };
+  return String(str).replace(/[&<>"']/g, (ch) => map[ch]);
 }
 
 function findItem(id) {
