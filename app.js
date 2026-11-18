@@ -78,7 +78,7 @@ function formatARS(amount) {
 }
 
 function escapeHTML(str) {
-  return String(str).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  return String(str).replace(/[&<>"']/g, (ch) => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[ch]));
 }
 
 function findItem(id) {
@@ -812,12 +812,15 @@ function showToast(message) {
  * - Arranca solo (sin sonido) al entrar en pantalla y se pausa al salir.
  * - Respeta "reducir movimiento": en ese caso solo reproduce si el usuario lo pide.
  * - Si el usuario lo pausa a mano, no se vuelve a reproducir solo.
+ * - Muestra el aviso #tourError si el archivo de video no carga o el formato no es compatible.
  */
 function initTourVideo() {
   const player = document.getElementById('tourPlayer');
   const video = document.getElementById('tourVideo');
   if (!player || !video) return;
 
+  const sourceEl = document.getElementById('tourVideoSource');
+  const errorEl = document.getElementById('tourError');
   const playBtn = document.getElementById('tourPlayBtn');
   const toggleBtn = document.getElementById('tourToggleBtn');
   const soundBtn = document.getElementById('tourSoundBtn');
@@ -827,10 +830,32 @@ function initTourVideo() {
 
   let pausedByUser = false;
 
+  const showVideoError = () => {
+    player.classList.add('has-error');
+    if (errorEl) errorEl.hidden = false;
+  };
+
+  const clearVideoError = () => {
+    player.classList.remove('has-error');
+    if (errorEl) errorEl.hidden = true;
+  };
+
+  sourceEl?.addEventListener('error', showVideoError);
+  video.addEventListener('error', showVideoError);
+  video.addEventListener('loadeddata', clearVideoError);
+
+  if (video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+    showVideoError();
+  }
+
   const safePlay = () => {
     const attempt = video.play();
     if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {});
   };
+
+  if (prefersReducedMotion) {
+    video.pause();
+  }
 
   const userToggle = () => {
     if (video.paused) {
@@ -845,22 +870,22 @@ function initTourVideo() {
   const syncPlayState = () => {
     const playing = !video.paused && !video.ended;
     player.classList.toggle('is-playing', playing);
-    toggleBtn.setAttribute('aria-label', playing ? 'Pausar video' : 'Reproducir video');
+    toggleBtn?.setAttribute('aria-label', playing ? 'Pausar video' : 'Reproducir video');
   };
 
   const syncSoundState = () => {
     const unmuted = !video.muted;
     player.classList.toggle('is-unmuted', unmuted);
-    soundBtn.setAttribute('aria-pressed', String(unmuted));
-    soundBtn.setAttribute('aria-label', unmuted ? 'Silenciar video' : 'Activar sonido');
+    soundBtn?.setAttribute('aria-pressed', String(unmuted));
+    soundBtn?.setAttribute('aria-label', unmuted ? 'Silenciar video' : 'Activar sonido');
     if (soundLabel) soundLabel.textContent = unmuted ? 'Silenciar' : 'Activar sonido';
   };
 
-  playBtn.addEventListener('click', userToggle);
-  toggleBtn.addEventListener('click', userToggle);
+  playBtn?.addEventListener('click', userToggle);
+  toggleBtn?.addEventListener('click', userToggle);
   video.addEventListener('click', userToggle);
 
-  soundBtn.addEventListener('click', () => {
+  soundBtn?.addEventListener('click', () => {
     video.muted = !video.muted;
     if (!video.muted) {
       track('tour_video_sound_on');
@@ -872,18 +897,19 @@ function initTourVideo() {
   });
 
   video.addEventListener('play', syncPlayState);
+  video.addEventListener('playing', syncPlayState);
   video.addEventListener('pause', syncPlayState);
   video.addEventListener('ended', syncPlayState);
   video.addEventListener('volumechange', syncSoundState);
 
   video.addEventListener('timeupdate', () => {
-    if (!video.duration) return;
+    if (!video.duration || !progressFill || !progress) return;
     const pct = (video.currentTime / video.duration) * 100;
     progressFill.style.width = pct + '%';
     progress.setAttribute('aria-valuenow', String(Math.round(pct)));
   });
 
-  progress.addEventListener('click', (e) => {
+  progress?.addEventListener('click', (e) => {
     if (!video.duration) return;
     const rect = progress.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));

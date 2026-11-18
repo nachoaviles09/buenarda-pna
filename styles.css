@@ -1188,6 +1188,47 @@ section[id] {
   cursor: pointer;
 }
 
+.video-player__error {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(13, 13, 13, 0.92);
+  color: var(--text-main);
+}
+
+.video-player__error p {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--cheddar);
+}
+
+.video-player__error small {
+  max-width: 44ch;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.video-player__error code {
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  font-size: 0.8rem;
+}
+
+.video-player.has-error .video-player__play,
+.video-player.has-error .video-player__bar {
+  display: none;
+}
+
 .video-player__play {
   position: absolute;
   top: 50%;

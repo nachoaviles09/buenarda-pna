@@ -315,15 +315,21 @@
             class="video-player__media"
             id="tourVideo"
             poster="assets/buenarda-local-poster.jpg"
-            preload="metadata"
+            preload="auto"
+            autoplay
             muted
             loop
             playsinline
             aria-label="Recorrido en video por el local de Buenarda, Colón 696, Paraná"
           >
-            <source src="assets/buenarda-local.mp4" type="video/mp4" />
+            <source id="tourVideoSource" src="assets/buenarda-local.mp4" type="video/mp4" />
             Tu navegador no soporta video HTML5.
           </video>
+
+          <div class="video-player__error" id="tourError" role="alert" hidden>
+            <p>No se pudo cargar el video del local.</p>
+            <small>Verificá que el archivo esté en <code>assets/buenarda-local.mp4</code> en formato MP4 (H.264).</small>
+          </div>
 
           <button type="button" class="video-player__play" id="tourPlayBtn" aria-label="Reproducir video">
             <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -367,26 +373,6 @@
           <li>🕒 Mié a Dom · 20:00 a 00:00 hs</li>
           <li>🍔 Welcome Burgers Lovers</li>
         </ul>
-
-        <div class="gallery reveal">
-          <figure class="gallery__item">
-            <img src="assets/gallery/local-1.jpg" alt="Vista nocturna de la esquina de Buenarda con su cartel iluminado" width="848" height="480" loading="lazy" />
-            <figcaption>La esquina, de noche</figcaption>
-          </figure>
-          <figure class="gallery__item">
-            <img src="assets/gallery/local-2.jpg" alt="Entrada de Buenarda en Colón 696 con el cartel Welcome Burgers Lovers" width="848" height="480" loading="lazy" />
-            <figcaption>Entrada · Colón 696</figcaption>
-          </figure>
-          <figure class="gallery__item">
-            <img src="assets/gallery/local-3.jpg" alt="Puerta de Buenarda iluminada de naranja vista desde la vereda" width="848" height="480" loading="lazy" />
-            <figcaption>Welcome Burgers Lovers</figcaption>
-          </figure>
-          <a class="gallery__ig" href="https://www.instagram.com/buenardaparana/" target="_blank" rel="noopener noreferrer">
-            <span class="gallery__ig-icon" aria-hidden="true">📸</span>
-            <strong>Más en Instagram</strong>
-            <small>@buenardaparana · <span data-bind="igLong">17,5 mil</span> seguidores</small>
-          </a>
-        </div>
       </div>
     </section>
 
