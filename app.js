@@ -1,2134 +1,1577 @@
 'use strict';
 
-/**
- * BUENARDA (@buenardaparana) — Lógica de Carta, Pedido Grupal, Zonas, Ticket Térmico y Sync Sheets
- */
-
-const STORAGE_KEY = 'buenarda_cart_v4';
-const FORM_STORAGE_KEY = 'buenarda_checkout_v4';
-const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-const state = {
-  filter: 'all',
-  search: '',
-  heroIndex: 0,
-  selectedSizes: {}, // { [itemId]: 'doble' | 'triple' }
-  cart: [], // [{ key, id, size, qty, person, note }]
-  deliveryMode: 'retiro', // 'retiro' | 'delivery'
-  deliveryZoneId: '',
-  lastFocused: null,
-};
-
-let deliveryZones = Array.isArray(window.DELIVERY_ZONES) ? [...DELIVERY_ZONES] : [];
-
-// ============================================================================
-// UTILIDADES
-// ============================================================================
-
-const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => document.querySelectorAll(selector);
-
-function formatARS(value) {
-  return '$' + Math.round(Number(value) || 0).toLocaleString('es-AR');
-}
-
-function escapeHTML(str) {
-  const map = {
-    '&': '&',
-    '<': '<',
-    '>': '>',
-    '"': '"',
-    "'": ''',
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. Garantizar que ninguna sección quede invisible aunque ocurra un error externo
+  const forceRevealAll = () => {
+    document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
   };
-  return String(str ?? '').replace(/[&<>"']/g, (ch) => map[ch]);
-}
 
-function normalizeText(str) {
-  return String(str ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
-}
-
-function track(eventName, params = {}) {
   try {
-    if (typeof window.gtag === 'function') window.gtag('event', eventName, params);
-    if (typeof window.fbq === 'function') window.fbq('trackCustom', eventName, params);
-    window.dispatchEvent(new CustomEvent('buenarda:track', { detail: { name: eventName, params } }));
-  } catch {
-    // No interrumpir si no hay analytics configurado
-  }
-}
-
-let toastTimer = null;
-function showToast(message) {
-  const toast = $('#toast');
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add('is-visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.classList.remove('is-visible');
-  }, 2600);
-}
-
-function getAllCatalogItems() {
-  const list = [...MENU_ITEMS];
-  if (SITE.promo && SITE.promo.active) {
-    list.push({
-      id: SITE.promo.id || 'promo-noche',
-      name: SITE.promo.title || 'COMBO DE LA NOCHE',
-      category: 'promos',
-      badge: SITE.promo.badge || 'Promo',
-      isBurger: false,
-      isPromo: true,
-      basePrice: Number(SITE.promo.price) || 0,
-      ingredients: SITE.promo.subtitle || '',
-      icon: SITE.promo.icon || '🔥',
-      available: true,
-    });
-  }
-  return list;
-}
-
-function getItemById(id) {
-  return getAllCatalogItems().find((item) => item.id === id);
-}
-
-function isItemAvailable(item) {
-  return Boolean(item) && item.available !== false;
-}
-
-function getUnitPrice(item, size) {
-  if (!item) return 0;
-  if (!item.isBurger) return item.basePrice;
-  return size === 'triple' ? item.basePrice + SITE.tripleExtraPrice : item.basePrice;
-}
-
-function getSizeLabel(item, size) {
-  if (!item || !item.isBurger) return item?.isPromo ? 'Combo Especial' : 'Porción / Unidad';
-  return size === 'triple' ? 'Triple (x6 Queso)' : 'Doble (x4 Queso)';
-}
-
-function getSelectedZone() {
-  if (!deliveryZones.length) return null;
-  return deliveryZones.find((z) => z.id === state.deliveryZoneId) || deliveryZones[0];
-}
-
-function getShippingFee() {
-  if (state.deliveryMode !== 'delivery') return 0;
-  if (deliveryZones.length > 0) {
-    const zone = getSelectedZone();
-    return zone && typeof zone.fee === 'number' ? zone.fee : null;
-  }
-  return typeof SITE.delivery?.fee === 'number' ? SITE.delivery.fee : null;
-}
-
-function hexToRgba(hex, alpha) {
-  const clean = String(hex || '').replace('#', '').trim();
-  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return `rgba(245, 183, 0, ${alpha})`;
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function lightenHex(hex, amount = 26) {
-  const clean = String(hex || '').replace('#', '').trim();
-  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return '#ffca28';
-  const clamp = (n) => Math.max(0, Math.min(255, n));
-  const r = clamp(parseInt(clean.slice(0, 2), 16) + amount);
-  const g = clamp(parseInt(clean.slice(2, 4), 16) + amount);
-  const b = clamp(parseInt(clean.slice(4, 6), 16) + amount);
-  return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
-}
-
-function createOrderMeta(now = new Date()) {
-  const num = Math.floor(1000 + Math.random() * 9000);
-  const code = `BN-${num}`;
-
-  const dateStr = new Intl.DateTimeFormat('es-AR', {
-    timeZone: SITE.timeZone,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(now);
-
-  const timeStr = new Intl.DateTimeFormat('es-AR', {
-    timeZone: SITE.timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(now);
-
-  return { code, dateStr, timeStr };
-}
-
-// ============================================================================
-// IDENTIDAD DE MARCA Y TEMA DINÁMICO (PLANTILLA REUTILIZABLE)
-// ============================================================================
-
-function applyPrimaryColor(hexColor) {
-  if (!hexColor || !/^#[0-9a-fA-F]{6}$/.test(hexColor.trim())) return;
-  const color = hexColor.trim();
-  const root = document.documentElement;
-  root.style.setProperty('--cheddar', color);
-  root.style.setProperty('--cheddar-hover', lightenHex(color, 24));
-  root.style.setProperty('--cheddar-soft', hexToRgba(color, 0.14));
-}
-
-function applyBrandBindings() {
-  const b = SITE.brand || {};
-  const map = {
-    brandName: b.name || 'BUENARDA',
-    brandHandle: b.handle || '@buenardaparana',
-    brandHandleUpper: (b.handle || '@buenardaparana').toUpperCase(),
-    tagline: b.tagline || 'Hamburguesas de alta calidad | 100% Carne',
-    cityUpper: (b.city || 'Paraná · Entre Ríos').toUpperCase(),
-    streetOnly: b.streetOnly || 'Colón 696',
-    streetOnlyUpper: (b.streetOnly || 'Colón 696').toUpperCase(),
-    shortAddress: b.shortAddress || 'Colón 696 — Paraná',
-    fullAddress: b.fullAddress || 'Colón 696, E3100 Paraná, Entre Ríos',
-    marqueeLocation: (b.shortAddress || 'COLÓN 696 · PARANÁ').toUpperCase(),
-    hoursLabel: SITE.hours?.label || 'Mié a Dom 20:00 a 00:00 hs',
-    hoursFullLabel: SITE.hours?.fullLabel || 'Miércoles a Domingo · 20:00 a 00:00 hs',
-    igShort: SITE.instagramFollowers?.short || '+17.5K',
-    igLong: SITE.instagramFollowers?.long || '17,5 mil',
-  };
-
-  $$('[data-bind]').forEach((el) => {
-    const key = el.dataset.bind;
-    if (map[key] !== undefined) el.textContent = map[key];
-  });
-
-  $$('[data-bind-href]').forEach((el) => {
-    const key = el.dataset.bindHref;
-    if (b[key]) el.setAttribute('href', b[key]);
-  });
-
-  const mapFrame = $('#locationMapFrame');
-  if (mapFrame && b.mapsEmbedUrl && mapFrame.src !== b.mapsEmbedUrl) {
-    mapFrame.src = b.mapsEmbedUrl;
-  }
-
-  if (b.name) {
-    document.title = `${b.name} | ${b.tagline || 'Hamburguesas de Alta Calidad'}`;
-  }
-
-  if (b.primaryColor) {
-    applyPrimaryColor(b.primaryColor);
-  }
-
-  const burgersCount = $('#heroBurgersCount');
-  if (burgersCount) {
-    burgersCount.textContent = String(MENU_ITEMS.filter((i) => i.isBurger).length);
-  }
-}
-
-function syncNavHeight() {
-  const nav = $('#navbar');
-  if (nav) {
-    document.documentElement.style.setProperty('--nav-h', `${nav.offsetHeight}px`);
-  }
-}
-
-// ============================================================================
-// PROMO / COMBO DE LA NOCHE
-// ============================================================================
-
-function renderNightPromo() {
-  const card = $('#nightPromoCard');
-  if (!card) return;
-  const promo = SITE.promo;
-  if (!promo || !promo.active) {
-    card.hidden = true;
-    return;
-  }
-
-  card.hidden = false;
-  const badgeEl = $('#nightPromoBadge');
-  const titleEl = $('#nightPromoTitle');
-  const subEl = $('#nightPromoSubtitle');
-  const oldEl = $('#nightPromoOldPrice');
-  const priceEl = $('#nightPromoPrice');
-
-  if (badgeEl) badgeEl.textContent = promo.badge || '🔥 PROMO DE LA NOCHE';
-  if (titleEl) titleEl.textContent = promo.title || 'COMBO DE LA NOCHE';
-  if (subEl) subEl.textContent = promo.subtitle || '';
-  if (priceEl) priceEl.textContent = formatARS(promo.price);
-
-  if (oldEl) {
-    if (promo.oldPrice && Number(promo.oldPrice) > Number(promo.price)) {
-      oldEl.textContent = formatARS(promo.oldPrice);
-      oldEl.hidden = false;
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.08 }
+      );
+      document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+      setTimeout(forceRevealAll, 900);
     } else {
-      oldEl.hidden = true;
+      forceRevealAll();
     }
+  } catch (err) {
+    forceRevealAll();
   }
-}
 
-// ============================================================================
-// ESTADO DE APERTURA EN TIEMPO REAL
-// ============================================================================
-
-function formatHour(h) {
-  return String(h % 24).padStart(2, '0') + ':00';
-}
-
-function getLocalParts(date) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: SITE.timeZone,
-    weekday: 'short',
-    hour: 'numeric',
-    minute: 'numeric',
-    hourCycle: 'h23',
-  }).formatToParts(date);
-
-  const get = (type) => parts.find((p) => p.type === type)?.value;
-  const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  return {
-    day: dayMap[get('weekday')] ?? date.getDay(),
-    minutes: Number(get('hour')) * 60 + Number(get('minute')),
+  // 2. Configuración segura con respaldos (funciona con cualquier versión de menu-data.js)
+  const rawSite = typeof SITE !== 'undefined' && SITE ? SITE : {};
+  const config = {
+    brand: Object.assign(
+      {
+        name: 'BUENARDA',
+        handle: '@buenardaparana',
+        tagline: 'Hamburguesas de alta calidad | 100% Carne',
+        city: 'Paraná · Entre Ríos',
+        streetOnly: 'Colón 696',
+        shortAddress: 'Colón 696 — Paraná',
+        fullAddress: 'Colón 696, E3100 Paraná, Entre Ríos',
+        instagramUrl: 'https://www.instagram.com/buenardaparana/',
+        mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Colon+696+Parana+Entre+Rios',
+        primaryColor: '#F5B700',
+      },
+      rawSite.brand || {}
+    ),
+    sheet: Object.assign(
+      {
+        menuCsvUrl: '',
+        configCsvUrl: '',
+        shippingCsvUrl: '',
+      },
+      rawSite.sheet || {}
+    ),
+    appsScriptUrl: rawSite.appsScriptUrl || '',
+    whatsappNumber: String(rawSite.whatsappNumber || '5493434717233').replace(/\D/g, ''),
+    tripleExtraPrice: Number(rawSite.tripleExtraPrice) || 2400,
+    timeZone: rawSite.timeZone || 'America/Argentina/Buenos_Aires',
+    hours: Object.assign(
+      {
+        openDays: [3, 4, 5, 6, 0],
+        open: 20,
+        close: 24,
+        label: 'Mié a Dom 20:00 a 00:00 hs',
+        fullLabel: 'Miércoles a Domingo · 20:00 a 00:00 hs',
+      },
+      rawSite.hours || {}
+    ),
+    delivery: Object.assign({ fee: null }, rawSite.delivery || {}),
+    payment: Object.assign(
+      {
+        alias: 'buenarda.parana.mp',
+        holder: 'Buenarda Paraná',
+      },
+      rawSite.payment || {}
+    ),
+    promo: Object.assign(
+      {
+        active: false,
+        id: 'promo-noche',
+        badge: '🔥 PROMO DE LA NOCHE',
+        title: 'COMBO BUENARDA NIGHT',
+        subtitle: '',
+        price: 0,
+        oldPrice: 0,
+        icon: '🔥',
+      },
+      rawSite.promo || {}
+    ),
+    instagramFollowers: Object.assign(
+      { short: '+17.5K', long: '17,5 mil' },
+      rawSite.instagramFollowers || {}
+    ),
+    usePhotos: Boolean(rawSite.usePhotos),
+    photoExtension: rawSite.photoExtension || 'jpg',
+    upsellIds: Array.isArray(rawSite.upsellIds)
+      ? rawSite.upsellIds
+      : ['papas-clasicas', 'papas-cheddar-bacon', 'gaseosa-lata'],
   };
-}
 
-function getOpenStatus(now = new Date()) {
-  const { openDays, open, close } = SITE.hours;
-  const { day, minutes } = getLocalParts(now);
-  const isOpenDay = Array.isArray(openDays) && openDays.includes(day);
+  let menuItems =
+    typeof MENU_ITEMS !== 'undefined' && Array.isArray(MENU_ITEMS)
+      ? MENU_ITEMS.map((item) => Object.assign({ available: true }, item))
+      : [];
 
-  if (isOpenDay && minutes >= open * 60 && minutes < close * 60) {
-    return {
-      isOpen: true,
-      nextText: '',
-      bannerText: `ABIERTO AHORA · TOMANDO PEDIDOS HASTA LAS ${formatHour(close)} HS`,
-    };
-  }
+  let deliveryZones =
+    typeof DELIVERY_ZONES !== 'undefined' && Array.isArray(DELIVERY_ZONES)
+      ? DELIVERY_ZONES.slice()
+      : [];
 
-  let nextText = '';
-  if (isOpenDay && minutes < open * 60) {
-    nextText = `hoy a las ${formatHour(open)} hs`;
-  } else {
-    for (let i = 1; i <= 7; i += 1) {
-      const d = (day + i) % 7;
-      if (Array.isArray(openDays) && openDays.includes(d)) {
-        nextText = i === 1 ? `mañana a las ${formatHour(open)} hs` : `el ${DAY_NAMES[d]} a las ${formatHour(open)} hs`;
-        break;
-      }
-    }
-  }
+  const reviewsListData =
+    typeof REVIEWS !== 'undefined' && Array.isArray(REVIEWS) ? REVIEWS : [];
 
-  return {
-    isOpen: false,
-    nextText,
-    bannerText: nextText
-      ? `CERRADO AHORA · ABRIMOS ${nextText.toUpperCase()}`
-      : `CERRADO AHORA · ${(SITE.hours?.label || 'MIÉ A DOM · 20:00 A 00:00 HS').toUpperCase()}`,
+  const state = {
+    filter: 'all',
+    query: '',
+    heroIndex: 0,
+    cardSizes: {},
+    cart: [],
+    deliveryMode: 'retiro',
+    selectedZoneId: deliveryZones[0] ? deliveryZones[0].id : '',
+    lastOrderUrl: '',
   };
-}
 
-function updateOpenStatus() {
-  const dot = $('#openStatusDot');
-  const text = $('#openStatusText');
-  const notice = $('#cartOpenNotice');
-  if (!dot || !text) return;
-
-  const status = getOpenStatus(new Date());
-  dot.classList.toggle('is-open', status.isOpen);
-  dot.classList.toggle('is-closed', !status.isOpen);
-  text.textContent = status.bannerText;
-
-  if (notice) {
-    notice.hidden = status.isOpen;
-    if (!status.isOpen) {
-      notice.textContent = status.nextText
-        ? `⏰ Ahora estamos cerrados (abrimos ${status.nextText}). Podés dejar armado tu pedido y lo confirmamos apenas abramos.`
-        : `⏰ El local está cerrado en este momento (${SITE.hours?.fullLabel || 'Mié a Dom 20 a 00 hs'}). Podés dejar armado tu pedido igual.`;
-    }
-  }
-}
-
-// ============================================================================
-// ILUSTRACIÓN VECTORIAL POR CAPAS + ANIMACIÓN SMASH + CORTE TRANSVERSAL
-// ============================================================================
-
-function renderBurgerSVG(layers = {}, size = 'doble') {
-  const cheeseColors = {
-    cheddar: { main: '#F5B700', dark: '#D69600' },
-    'smoked-cheddar': { main: '#E07A16', dark: '#B85B06' },
-    provolone: { main: '#F3EAD2', dark: '#D8C9A3' },
-  };
-  const cheese = cheeseColors[layers.cheese] || cheeseColors.cheddar;
-
-  const sauceColors = {
-    'thousand-island': '#F28B66',
-    bbq: '#5C1E12',
-    alioli: '#F7F2DC',
-    buenarda: '#F29F38',
-    royale: '#D93829',
-  };
-  const sauce = sauceColors[layers.sauce] || '#F5B700';
-
-  const lettuceLayer = layers.lettuce
-    ? `<path d="M36 132 Q55 124 72 132 Q90 140 110 131 Q130 123 148 132 Q166 139 184 131 L182 140 Q164 147 146 139 Q128 132 110 140 Q90 147 72 139 Q54 132 38 139 Z" fill="#4CAF50"/>`
-    : '';
-
-  const tomatoLayer = layers.tomato
-    ? `<rect x="44" y="123" width="132" height="9" rx="4.5" fill="#E53935"/>`
-    : '';
-
-  const picklesLayer = layers.pickles
-    ? `<g fill="#689F38">
-        <ellipse cx="64" cy="126" rx="14" ry="4.2"/>
-        <ellipse cx="110" cy="125" rx="15" ry="4.2"/>
-        <ellipse cx="156" cy="126" rx="14" ry="4.2"/>
-      </g>`
-    : '';
-
-  const baconLayer = layers.bacon
-    ? `<path d="M40 103 Q64 95 88 103 T136 103 T180 102 L178 111 Q154 117 132 110 T86 110 T42 111 Z" fill="#A8322D"/>
-       <path d="M45 106 Q68 100 90 106 T136 106 T175 105" stroke="#F4A896" stroke-width="2.2" fill="none"/>`
-    : '';
-
-  const eggLayer = layers.egg
-    ? `<path d="M52 94 Q80 86 110 89 Q142 86 168 95 Q172 103 152 105 Q110 107 66 105 Q48 102 52 94 Z" fill="#FFFDF7"/>
-       <ellipse cx="110" cy="95" rx="18" ry="7.5" fill="#FFB300"/>`
-    : '';
-
-  const onionLayer = layers.crispyOnion
-    ? `<g stroke="#C67D28" stroke-width="2.6" fill="none" stroke-linecap="round">
-        <path d="M52 96 C62 88, 74 98, 84 90 C94 84, 106 96, 118 89 C130 83, 142 96, 154 90 C162 86, 168 93, 172 96"/>
-        <path d="M58 100 C70 92, 82 101, 96 94 C110 88, 124 100, 138 93 C150 88, 160 97, 166 99" stroke="#E29B42"/>
-      </g>`
-    : layers.caramelOnion
-      ? `<path d="M48 97 Q78 89 110 95 Q142 90 172 97 Q166 104 110 103 Q54 104 48 97 Z" fill="#6D3B1E"/>`
-      : layers.dicedOnion
-        ? `<g fill="#F5F3EE" opacity="0.92">
-            <rect x="62" y="94" width="7" height="5" rx="1.5"/>
-            <rect x="82" y="92" width="7" height="5" rx="1.5"/>
-            <rect x="104" y="94" width="7" height="5" rx="1.5"/>
-            <rect x="126" y="92" width="7" height="5" rx="1.5"/>
-            <rect x="148" y="94" width="7" height="5" rx="1.5"/>
-          </g>`
-        : '';
-
-  // Medallón extra + queso fundido cuando el cliente elige Triple
-  const extraTripleLayer =
-    size === 'triple'
-      ? `<g class="svg-extra-patty">
-          <rect x="34" y="106" width="152" height="17" rx="8.5" fill="#4A2516"/>
-          <path d="M38 106 L182 106 L176 116 L154 123 L136 113 L112 124 L88 113 L64 122 L44 114 Z" fill="${cheese.main}"/>
-        </g>`
-      : '';
-
-  const topOffset = size === 'triple' ? -10 : 0;
-
-  return `
-    <svg viewBox="0 0 220 205" role="img" aria-hidden="true">
-      <ellipse cx="110" cy="186" rx="78" ry="10" fill="rgba(0,0,0,0.55)"/>
-      <!-- Pan inferior -->
-      <path d="M40 160 H180 V168 C180 177 166 182 110 182 C54 182 40 177 40 168 Z" fill="#C97A2B"/>
-      <rect x="40" y="157" width="140" height="6" rx="3" fill="#E39A48"/>
-
-      ${lettuceLayer}
-      ${tomatoLayer}
-      ${picklesLayer}
-
-      <!-- Medallón 1 -->
-      <rect x="34" y="140" width="152" height="18" rx="9" fill="#4E2718"/>
-      <path d="M38 140 L182 140 L175 150 L152 157 L130 147 L110 158 L88 147 L64 156 L44 148 Z" fill="${cheese.main}"/>
-
-      <!-- Medallón 2 -->
-      <rect x="33" y="122" width="154" height="18" rx="9" fill="#5A2E1C"/>
-      <path d="M37 122 L183 122 L177 132 L156 140 L132 129 L110 141 L86 129 L62 139 L43 130 Z" fill="${cheese.main}"/>
-
-      ${extraTripleLayer}
-
-      <g transform="translate(0, ${topOffset})">
-        ${baconLayer}
-        ${eggLayer}
-        ${onionLayer}
-
-        <!-- Salsa -->
-        <path d="M46 89 Q78 83 110 88 Q142 83 174 89 Q168 95 148 93 Q128 97 110 93 Q90 97 70 93 Q52 95 46 89 Z" fill="${sauce}"/>
-
-        <!-- Pan superior -->
-        <path d="M38 86 C38 46 68 32 110 32 C152 32 182 46 182 86 Z" fill="#D88732"/>
-        <path d="M46 81 C48 51 74 39 110 39 C146 39 172 51 174 81 Z" fill="#E89D46" opacity="0.55"/>
-
-        <!-- Semillas de sésamo -->
-        <g fill="#FFF5DC">
-          <ellipse cx="82" cy="52" rx="4.2" ry="2.1" transform="rotate(-18 82 52)"/>
-          <ellipse cx="110" cy="46" rx="4.2" ry="2.1"/>
-          <ellipse cx="138" cy="52" rx="4.2" ry="2.1" transform="rotate(18 138 52)"/>
-          <ellipse cx="94" cy="64" rx="4.2" ry="2.1" transform="rotate(-10 94 64)"/>
-          <ellipse cx="126" cy="64" rx="4.2" ry="2.1" transform="rotate(10 126 64)"/>
-          <ellipse cx="68" cy="68" rx="3.8" ry="2" transform="rotate(-24 68 68)"/>
-          <ellipse cx="152" cy="68" rx="3.8" ry="2" transform="rotate(24 152 68)"/>
-        </g>
-      </g>
-    </svg>
-  `;
-}
-
-function visualHTML(item, size = 'doble', includeBurst = false) {
-  const burst = includeBurst ? `<span class="smash-burst" aria-hidden="true"></span>` : '';
-  const fallbackMarkup = item.isBurger
-    ? renderBurgerSVG(item.layers, size)
-    : `<span style="font-size:4.2rem;line-height:1" aria-hidden="true">${escapeHTML(item.icon || '🍟')}</span>`;
-
-  if (SITE.usePhotos) {
-    const ext = SITE.photoExtension || 'jpg';
-    const src = `assets/burgers/${encodeURIComponent(item.id)}.${ext}`;
-    const cutSrc = `assets/burgers/${encodeURIComponent(item.id)}-corte.${ext}`;
-
-    return `
-      ${burst}
-      <div class="photo-stack" data-photo-stack>
-        <img
-          src="${src}"
-          alt="${escapeHTML(item.name)}"
-          class="item-photo"
-          loading="lazy"
-          onerror="this.parentElement.outerHTML=this.dataset.fallback"
-          data-fallback="${escapeHTML(fallbackMarkup)}"
-        />
-        <img
-          src="${cutSrc}"
-          alt="${escapeHTML(item.name)} corte transversal"
-          class="item-photo item-photo--cut"
-          loading="lazy"
-          onerror="this.nextElementSibling?.remove(); this.remove();"
-        />
-        <span class="photo-cut-pill">🔪 Ver corte</span>
-      </div>
-    `;
-  }
-
-  return `${burst}${fallbackMarkup}`;
-}
-
-// ============================================================================
-// HERO SHOWCASE (DESTACADAS)
-// ============================================================================
-
-function getHeroBurgers() {
-  const availableBurgers = MENU_ITEMS.filter((i) => i.isBurger && isItemAvailable(i));
-  return availableBurgers.length ? availableBurgers : MENU_ITEMS.filter((i) => i.isBurger);
-}
-
-function renderHeroShowcase() {
-  const burgers = getHeroBurgers();
-  if (!burgers.length) return;
-  if (state.heroIndex >= burgers.length) state.heroIndex = 0;
-
-  const current = burgers[state.heroIndex];
-  const visualEl = $('#heroBurgerVisual');
-  const nameEl = $('#heroBurgerName');
-  const priceEl = $('#heroBurgerPrice');
-  const descEl = $('#heroBurgerDesc');
-  const dotsEl = $('#heroDots');
-  const addBtn = $('#addHeroBurgerBtn');
-
-  if (visualEl) visualEl.innerHTML = visualHTML(current, 'doble', false);
-  if (nameEl) nameEl.textContent = current.name;
-  if (priceEl) priceEl.textContent = formatARS(current.basePrice);
-  if (descEl) descEl.textContent = current.ingredients;
-
-  if (addBtn) {
-    const soldOut = !isItemAvailable(current);
-    addBtn.disabled = soldOut;
-    addBtn.textContent = soldOut ? 'Agotado por hoy' : '+ Agregar al Pedido';
-  }
-
-  if (dotsEl) {
-    dotsEl.innerHTML = burgers
-      .map(
-        (b, idx) => `
-        <button
-          type="button"
-          class="story-dot ${idx === state.heroIndex ? 'is-active' : ''}"
-          aria-label="Ver ${escapeHTML(b.name)}"
-          aria-selected="${idx === state.heroIndex}"
-          data-hero-dot="${idx}"
-        ></button>`
-      )
-      .join('');
-  }
-}
-
-// ============================================================================
-// CARTA Y TARJETAS DE PRODUCTOS
-// ============================================================================
-
-function renderCardInner(item) {
-  const soldOut = !isItemAvailable(item);
-  const size = state.selectedSizes[item.id] || 'doble';
-  const price = getUnitPrice(item, size);
-
-  const sizeControls = item.isBurger
-    ? `
-      <div class="size-selector" role="group" aria-label="Tamaño de ${escapeHTML(item.name)}">
-        <button
-          type="button"
-          class="size-btn ${size === 'doble' ? 'is-active' : ''}"
-          data-size-item="${escapeHTML(item.id)}"
-          data-size-val="doble"
-          ${soldOut ? 'disabled' : ''}
-        >
-          Doble (x4 Queso)
-        </button>
-        <button
-          type="button"
-          class="size-btn ${size === 'triple' ? 'is-active' : ''}"
-          data-size-item="${escapeHTML(item.id)}"
-          data-size-val="triple"
-          ${soldOut ? 'disabled' : ''}
-        >
-          Triple (+${formatARS(SITE.tripleExtraPrice)})
-        </button>
-      </div>
-    `
-    : '';
-
-  return `
-    <div>
-      <div class="burger-card__top">
-        <span class="burger-card__badge ${soldOut ? 'burger-card__badge--soldout' : ''}">
-          ${soldOut ? 'Agotado por hoy' : escapeHTML(item.badge || 'Buenarda')}
-        </span>
-      </div>
-      <div class="burger-card__visual">${visualHTML(item, size, true)}</div>
-      <h3 class="burger-card__title">${escapeHTML(item.name)}</h3>
-      <p class="burger-card__ingredients">${escapeHTML(item.ingredients)}</p>
-    </div>
-    <div>
-      ${sizeControls}
-      <div class="burger-card__footer">
-        <span class="burger-card__price">${formatARS(price)}</span>
-        <button
-          type="button"
-          class="btn-add"
-          data-add-id="${escapeHTML(item.id)}"
-          ${soldOut ? 'disabled' : ''}
-        >
-          ${soldOut ? 'Sin stock' : '+ Agregar'}
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-function renderMenuGrid() {
-  const grid = $('#menuGrid');
-  if (!grid) return;
-
-  const query = normalizeText(state.search);
-  const filtered = MENU_ITEMS.filter((item) => {
-    const matchesFilter = state.filter === 'all' || item.category === state.filter;
-    if (!matchesFilter) return false;
-    if (!query) return true;
-    const haystack = normalizeText(`${item.name} ${item.ingredients} ${item.badge || ''}`);
-    return haystack.includes(query);
-  });
-
-  if (!filtered.length) {
-    grid.innerHTML = `
-      <div class="menu-empty">
-        <p>No encontramos productos que coincidan con "<strong>${escapeHTML(state.search)}</strong>".</p>
-        <button type="button" class="btn btn--ghost btn--sm" id="resetFiltersBtn">Ver toda la carta</button>
-      </div>
-    `;
-    return;
-  }
-
-  grid.innerHTML = filtered
-    .map(
-      (item) => `
-      <article class="burger-card is-entering ${!isItemAvailable(item) ? 'is-sold-out' : ''}" data-card-id="${escapeHTML(item.id)}">
-        ${renderCardInner(item)}
-      </article>
-    `
-    )
-    .join('');
-}
-
-function updateSingleCard(itemId, { smashTrigger = false } = {}) {
-  const item = getItemById(itemId);
-  const card = document.querySelector(`[data-card-id="${CSS.escape(itemId)}"]`);
-  if (!item || !card) return;
-
-  card.innerHTML = renderCardInner(item);
-
-  if (smashTrigger) {
-    card.classList.remove('is-smashing');
-    void card.offsetWidth;
-    card.classList.add('is-smashing');
-    clearTimeout(card._smashTimer);
-    card._smashTimer = setTimeout(() => {
-      card.classList.remove('is-smashing');
-    }, 680);
-  }
-}
-
-// ============================================================================
-// CARRITO, PEDIDO GRUPAL, ZONAS DE DELIVERY Y ALIAS
-// ============================================================================
-
-function saveCart() {
+  // Cargar carrito guardado si existe
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.cart));
-  } catch {
-    // Ignorar si el almacenamiento está bloqueado
-  }
-}
-
-function loadCart() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      state.cart = parsed
-        .filter((entry) => entry && entry.id && Number(entry.qty) > 0)
-        .map((entry) => ({
-          key: entry.key || `${entry.id}__${entry.size || 'doble'}`,
-          id: entry.id,
-          size: entry.size || 'doble',
-          qty: Number(entry.qty) || 1,
-          person: typeof entry.person === 'string' ? entry.person : '',
-          note: typeof entry.note === 'string' ? entry.note : '',
-        }));
+    const savedCart = JSON.parse(localStorage.getItem('buenarda_cart_v1') || '[]');
+    if (Array.isArray(savedCart)) {
+      state.cart = savedCart;
     }
-  } catch {
+  } catch (e) {
     state.cart = [];
   }
-}
 
-function saveCheckoutPrefs() {
-  try {
-    const payload = {
-      deliveryMode: state.deliveryMode,
-      deliveryZoneId: state.deliveryZoneId,
-      customerName: $('#customerName')?.value || '',
-      customerAddress: $('#customerAddress')?.value || '',
-      paymentMethod: $('#paymentMethod')?.value || 'Efectivo',
-    };
-    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    // Ignorar
-  }
-}
-
-function loadCheckoutPrefs() {
-  try {
-    const raw = localStorage.getItem(FORM_STORAGE_KEY);
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    if (saved.deliveryMode === 'delivery' || saved.deliveryMode === 'retiro') {
-      state.deliveryMode = saved.deliveryMode;
+  const saveCart = () => {
+    try {
+      localStorage.setItem('buenarda_cart_v1', JSON.stringify(state.cart));
+    } catch (e) {
+      // Ignorar si el navegador bloquea storage
     }
-    if (saved.deliveryZoneId) state.deliveryZoneId = saved.deliveryZoneId;
-    if ($('#customerName') && saved.customerName) $('#customerName').value = saved.customerName;
-    if ($('#customerAddress') && saved.customerAddress) $('#customerAddress').value = saved.customerAddress;
-    const paymentEl = $('#paymentMethod');
-    if (paymentEl && saved.paymentMethod && [...paymentEl.options].some((o) => o.value === saved.paymentMethod)) {
-      paymentEl.value = saved.paymentMethod;
-    }
-  } catch {
-    // Ignorar
-  }
-}
-
-function renderDeliveryZones() {
-  const select = $('#deliveryZoneSelect');
-  if (!select) return;
-
-  if (!deliveryZones.length) {
-    select.innerHTML = '';
-    return;
-  }
-
-  if (!deliveryZones.some((z) => z.id === state.deliveryZoneId)) {
-    state.deliveryZoneId = deliveryZones[0].id;
-  }
-
-  select.innerHTML = deliveryZones
-    .map((z) => {
-      const priceLabel = typeof z.fee === 'number' ? (z.fee === 0 ? 'Sin cargo' : formatARS(z.fee)) : 'A confirmar';
-      return `<option value="${escapeHTML(z.id)}" ${z.id === state.deliveryZoneId ? 'selected' : ''}>📍 ${escapeHTML(z.name)} — ${priceLabel}</option>`;
-    })
-    .join('');
-}
-
-function syncDeliveryUI() {
-  const isDelivery = state.deliveryMode === 'delivery';
-  $$('.delivery-btn').forEach((btn) => {
-    const active = btn.dataset.delivery === state.deliveryMode;
-    btn.classList.toggle('is-active', active);
-    btn.setAttribute('aria-pressed', String(active));
-  });
-
-  const addrInput = $('#customerAddress');
-  const zoneSelect = $('#deliveryZoneSelect');
-  const shippingRow = $('#cartShippingRow');
-
-  if (addrInput) addrInput.hidden = !isDelivery;
-  if (zoneSelect) zoneSelect.hidden = !isDelivery || deliveryZones.length === 0;
-  if (shippingRow) shippingRow.hidden = !isDelivery;
-}
-
-function syncAliasCard() {
-  const paymentSelect = $('#paymentMethod');
-  const aliasCard = $('#aliasCard');
-  if (!paymentSelect || !aliasCard) return;
-
-  const isTransfer = normalizeText(paymentSelect.value).includes('transferencia');
-  const alias = SITE.payment?.alias || '';
-
-  if (!isTransfer || !alias) {
-    aliasCard.hidden = true;
-    return;
-  }
-
-  aliasCard.hidden = false;
-  const valEl = $('#aliasValueText');
-  const holderEl = $('#aliasHolderText');
-  if (valEl) valEl.textContent = alias;
-  if (holderEl) {
-    holderEl.textContent = SITE.payment?.holder ? `Titular: ${SITE.payment.holder}` : '';
-  }
-}
-
-function flyToCart(sourceEl) {
-  if (!sourceEl || prefersReducedMotion || !sourceEl.isConnected) return;
-  const target = $('#openCartBtn') || $('#mobileCartBar');
-  if (!target) return;
-
-  const startRect = sourceEl.getBoundingClientRect();
-  const endRect = target.getBoundingClientRect();
-  if (!startRect.width || !endRect.width) return;
-
-  const dot = document.createElement('span');
-  dot.className = 'fly-dot';
-  dot.style.left = `${startRect.left + startRect.width / 2 - 8}px`;
-  dot.style.top = `${startRect.top + startRect.height / 2 - 8}px`;
-  document.body.appendChild(dot);
-
-  const dx = endRect.left + endRect.width / 2 - (startRect.left + startRect.width / 2);
-  const dy = endRect.top + endRect.height / 2 - (startRect.top + startRect.height / 2);
-
-  const anim = dot.animate(
-    [
-      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-      { transform: `translate(${dx}px, ${dy}px) scale(0.35)`, opacity: 0.45 },
-    ],
-    { duration: 600, easing: 'cubic-bezier(0.5, -0.15, 0.75, 0.45)' }
-  );
-
-  anim.onfinish = () => {
-    dot.remove();
-    bumpCartBadge();
   };
-}
 
-function bumpCartBadge() {
-  const badge = $('#cartCountBadge');
-  if (!badge) return;
-  badge.classList.remove('is-bump');
-  void badge.offsetWidth;
-  badge.classList.add('is-bump');
-}
+  // Utilidades seguras
+  const $ = (id) => document.getElementById(id);
 
-function flashAdded(btn) {
-  if (!btn || btn.dataset.flashing) return;
-  const original = btn.textContent;
-  btn.dataset.flashing = '1';
-  btn.textContent = '✓ Agregada';
-  btn.classList.add('is-added');
-  setTimeout(() => {
-    btn.textContent = original;
-    btn.classList.remove('is-added');
-    delete btn.dataset.flashing;
-  }, 900);
-}
+  const escapeHTML = (str) =>
+    String(str == null ? '' : str)
+      .replace(/&/g, '\u0026amp;')
+      .replace(/</g, '\u0026lt;')
+      .replace(/>/g, '\u0026gt;')
+      .replace(/"/g, '\u0026quot;')
+      .replace(/'/g, '\u0026#39;');
 
-function addToCart(itemId, forcedSize = null, sourceEl = null) {
-  const item = getItemById(itemId);
-  if (!item) return;
+  const formatARS = (amount) => {
+    const n = Math.round(Number(amount) || 0);
+    return '$' + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
 
-  if (!isItemAvailable(item)) {
-    showToast(`${item.name} está agotado por hoy`);
-    return;
-  }
+  const isYes = (val) => {
+    const clean = String(val == null ? '' : val)
+      .trim()
+      .toLowerCase();
+    return clean === 'si' || clean === 'sí' || clean === 'true' || clean === '1' || clean === 'activo';
+  };
 
-  const size = item.isBurger ? forcedSize || state.selectedSizes[item.id] || 'doble' : 'unico';
-  const key = `${item.id}__${size}`;
+  const isNo = (val) => {
+    const clean = String(val == null ? '' : val)
+      .trim()
+      .toLowerCase();
+    return clean === 'no' || clean === 'false' || clean === '0' || clean === 'agotado';
+  };
 
-  const existing = state.cart.find((line) => line.key === key);
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    state.cart.push({
-      key,
-      id: item.id,
-      size,
-      qty: 1,
-      person: '',
-      note: '',
+  let toastTimer = null;
+  const showToast = (msg) => {
+    const toast = $('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2600);
+  };
+
+  const copyText = async (text, okMsg) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(okMsg || 'Copiado al portapapeles');
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast(okMsg || 'Copiado al portapapeles');
+    }
+  };
+
+  // Aplicar datos de marca y textos dinámicos
+  const applyBrandBindings = () => {
+    if (config.brand.primaryColor) {
+      document.documentElement.style.setProperty('--accent', config.brand.primaryColor);
+    }
+
+    document.querySelectorAll('[data-bind="brandName"]').forEach((el) => {
+      el.textContent = config.brand.name;
     });
-  }
+    document.querySelectorAll('[data-bind="brandHandle"]').forEach((el) => {
+      el.textContent = config.brand.handle;
+    });
+    document.querySelectorAll('[data-bind="brandAddress"]').forEach((el) => {
+      el.textContent = config.brand.fullAddress || config.brand.shortAddress;
+    });
+    document.querySelectorAll('[data-bind="igShort"]').forEach((el) => {
+      el.textContent = config.instagramFollowers.short;
+    });
+    document.querySelectorAll('[data-bind="igLong"]').forEach((el) => {
+      el.textContent = config.instagramFollowers.long;
+    });
+    document.querySelectorAll('[data-bind="igLink"]').forEach((el) => {
+      if (config.brand.instagramUrl) el.setAttribute('href', config.brand.instagramUrl);
+    });
+    document.querySelectorAll('[data-bind="mapsLink"]').forEach((el) => {
+      if (config.brand.mapsUrl) el.setAttribute('href', config.brand.mapsUrl);
+    });
 
-  saveCart();
-  renderCart();
-  flashAdded(sourceEl);
-  flyToCart(sourceEl);
-  if (prefersReducedMotion) bumpCartBadge();
-  showToast(`✓ ${item.name} agregada al pedido`);
-  track('add_to_cart', {
-    item_id: item.id,
-    item_name: item.name,
-    value: getUnitPrice(item, size),
-    currency: 'ARS',
-  });
-}
+    const hoursSummary = $('hoursSummaryText');
+    if (hoursSummary && config.hours.fullLabel) {
+      hoursSummary.textContent = config.hours.fullLabel;
+    }
 
-function updateCartQty(key, delta) {
-  const idx = state.cart.findIndex((line) => line.key === key);
-  if (idx === -1) return;
+    const aliasEl = $('transferAliasText');
+    const holderEl = $('transferHolderText');
+    const ticketAliasEl = $('ticketAliasText');
+    if (aliasEl) aliasEl.textContent = config.payment.alias;
+    if (ticketAliasEl) ticketAliasEl.textContent = config.payment.alias;
+    if (holderEl) {
+      holderEl.textContent = config.payment.holder ? 'Titular: ' + config.payment.holder : '';
+    }
+  };
 
-  if (delta > 0) {
-    const item = getItemById(state.cart[idx].id);
-    if (item && !isItemAvailable(item)) {
-      showToast(`${item.name} está agotado por hoy`);
+  // Estado Abierto / Cerrado según horario local
+  const getLocalClock = () => {
+    try {
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: config.timeZone,
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).formatToParts(now);
+
+      const map = {};
+      parts.forEach((p) => {
+        map[p.type] = p.value;
+      });
+      const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      return {
+        day: dayMap[map.weekday] != null ? dayMap[map.weekday] : now.getDay(),
+        hour: Number(map.hour) % 24,
+        minute: Number(map.minute) || 0,
+      };
+    } catch (e) {
+      const now = new Date();
+      return { day: now.getDay(), hour: now.getHours(), minute: now.getMinutes() };
+    }
+  };
+
+  const isStoreOpen = () => {
+    const { day, hour } = getLocalClock();
+    const openDays = Array.isArray(config.hours.openDays) ? config.hours.openDays : [3, 4, 5, 6, 0];
+    const openH = Number(config.hours.open) || 20;
+    const closeH = Number(config.hours.close) || 24;
+    if (!openDays.includes(day)) return false;
+    if (closeH > openH) {
+      return hour >= openH && hour < closeH;
+    }
+    return hour >= openH || hour < closeH;
+  };
+
+  const updateOpenStatus = () => {
+    const open = isStoreOpen();
+    const dot = $('openStatusDot');
+    const text = $('openStatusText');
+    const notice = $('cartOpenNotice');
+
+    if (dot) {
+      dot.classList.toggle('is-open', open);
+      dot.classList.toggle('is-closed', !open);
+    }
+    if (text) {
+      text.textContent = open
+        ? 'ABIERTO AHORA · TOMANDO PEDIDOS'
+        : 'CERRADO AHORA · ' + (config.hours.label || 'Mié a Dom 20:00 a 00:00 hs');
+    }
+    if (notice) {
+      if (open) {
+        notice.hidden = true;
+      } else {
+        notice.hidden = false;
+        notice.textContent =
+          'Ahora estamos cerrados (' +
+          (config.hours.label || 'Mié a Dom 20:00 a 00:00 hs') +
+          '). Podés dejar tu pedido programado por WhatsApp.';
+      }
+    }
+  };
+
+  // Ilustración vectorial de cada burger (y soporte para fotos reales)
+  const buildBurgerSVG = (item, size) => {
+    const layers = item.layers || {};
+    const isTriple = size === 'triple';
+    const cheeseColor =
+      layers.cheese === 'provolone'
+        ? '#f5edd6'
+        : layers.cheese === 'smoked-cheddar'
+        ? '#e88b25'
+        : '#f5b700';
+
+    const sauceColor =
+      layers.sauce === 'bbq'
+        ? '#5c1d12'
+        : layers.sauce === 'alioli'
+        ? '#f3ebd3'
+        : layers.sauce === 'royale'
+        ? '#c93829'
+        : layers.sauce === 'buenarda'
+        ? '#e07a22'
+        : '#e89b6b';
+
+    return (
+      '<svg class="burger-svg" viewBox="0 0 260 190" role="img" aria-label="' +
+      escapeHTML(item.name) +
+      '">' +
+      '<ellipse cx="130" cy="174" rx="84" ry="10" fill="rgba(0,0,0,0.45)"/>' +
+      // Pan inferior
+      '<path d="M56 144 Q56 164 130 164 Q204 164 204 144 Z" fill="#c97a2b"/>' +
+      '<rect x="54" y="138" width="152" height="10" rx="5" fill="#dea04c"/>' +
+      // Lechuga / tomate si lleva
+      (layers.lettuce
+        ? '<path d="M48 136 Q68 128 88 136 T128 136 T168 136 T212 136 L208 142 L52 142 Z" fill="#4aa848"/>'
+        : '') +
+      (layers.tomato
+        ? '<rect x="64" y="130" width="132" height="7" rx="3.5" fill="#d93b2b"/>'
+        : '') +
+      // Medallón 1 + queso
+      '<rect x="52" y="118" width="156" height="16" rx="8" fill="#4a2514"/>' +
+      '<path d="M56 118 L204 118 L194 130 L176 121 L156 132 L130 121 L104 131 L82 121 L64 129 Z" fill="' +
+      cheeseColor +
+      '"/>' +
+      // Medallón 2 + queso
+      '<rect x="54" y="99" width="152" height="16" rx="8" fill="#572c18"/>' +
+      '<path d="M58 99 L202 99 L190 112 L168 102 L144 113 L122 102 L96 112 L74 102 Z" fill="' +
+      cheeseColor +
+      '"/>' +
+      // Medallón 3 extra si es Triple
+      (isTriple
+        ? '<g class="smash-extra-layer">' +
+          '<rect x="55" y="80" width="150" height="16" rx="8" fill="#4f2715"/>' +
+          '<path d="M59 80 L201 80 L188 92 L164 83 L138 93 L112 83 L86 92 Z" fill="' +
+          cheeseColor +
+          '"/>' +
+          '</g>'
+        : '') +
+      // Toppings (bacon, huevo, pepinillos, cebollas)
+      (layers.bacon
+        ? '<path d="M62 ' +
+          (isTriple ? 74 : 93) +
+          ' Q95 ' +
+          (isTriple ? 68 : 87) +
+          ' 130 ' +
+          (isTriple ? 74 : 93) +
+          ' T198 ' +
+          (isTriple ? 74 : 93) +
+          '" stroke="#9e2a22" stroke-width="7" stroke-linecap="round" fill="none"/>'
+        : '') +
+      (layers.egg
+        ? '<ellipse cx="130" cy="' +
+          (isTriple ? 71 : 90) +
+          '" rx="44" ry="7" fill="#fffdf7"/>' +
+          '<ellipse cx="130" cy="' +
+          (isTriple ? 69 : 88) +
+          '" rx="15" ry="6" fill="#f7a81b"/>'
+        : '') +
+      (layers.pickles
+        ? '<ellipse cx="92" cy="' +
+          (isTriple ? 73 : 92) +
+          '" rx="16" ry="4" fill="#5b8c2a"/>' +
+          '<ellipse cx="166" cy="' +
+          (isTriple ? 73 : 92) +
+          '" rx="16" ry="4" fill="#5b8c2a"/>'
+        : '') +
+      // Salsa superior
+      '<path d="M68 ' +
+      (isTriple ? 67 : 86) +
+      ' Q130 ' +
+      (isTriple ? 60 : 79) +
+      ' 192 ' +
+      (isTriple ? 67 : 86) +
+      '" stroke="' +
+      sauceColor +
+      '" stroke-width="6" stroke-linecap="round" fill="none"/>' +
+      // Pan superior brioche
+      '<path d="M56 ' +
+      (isTriple ? 65 : 84) +
+      ' C56 ' +
+      (isTriple ? 22 : 40) +
+      ', 204 ' +
+      (isTriple ? 22 : 40) +
+      ', 204 ' +
+      (isTriple ? 65 : 84) +
+      ' Z" fill="#d98732"/>' +
+      '<path d="M72 ' +
+      (isTriple ? 50 : 68) +
+      ' C86 ' +
+      (isTriple ? 32 : 50) +
+      ', 174 ' +
+      (isTriple ? 32 : 50) +
+      ', 188 ' +
+      (isTriple ? 50 : 68) +
+      '" stroke="rgba(255,235,190,0.45)" stroke-width="4" stroke-linecap="round" fill="none"/>' +
+      // Semillas de sésamo
+      '<ellipse cx="105" cy="' +
+      (isTriple ? 41 : 59) +
+      '" rx="4" ry="2" fill="#f7e3b5"/>' +
+      '<ellipse cx="132" cy="' +
+      (isTriple ? 37 : 55) +
+      '" rx="4" ry="2" fill="#f7e3b5"/>' +
+      '<ellipse cx="158" cy="' +
+      (isTriple ? 42 : 60) +
+      '" rx="4" ry="2" fill="#f7e3b5"/>' +
+      '</svg>'
+    );
+  };
+
+  const renderVisualHTML = (item, size) => {
+    if (!item.isBurger) {
+      return '<div class="item-emoji-visual" aria-hidden="true">' + escapeHTML(item.icon || '🍟') + '</div>';
+    }
+    if (config.usePhotos) {
+      const ext = config.photoExtension || 'jpg';
+      const mainSrc = 'assets/burgers/' + encodeURIComponent(item.id) + '.' + ext;
+      const cutSrc = 'assets/burgers/' + encodeURIComponent(item.id) + '-corte.' + ext;
+      return (
+        '<div class="photo-visual">' +
+        '<img class="photo-main" src="' +
+        mainSrc +
+        '" alt="' +
+        escapeHTML(item.name) +
+        '" loading="lazy" onerror="this.parentElement.innerHTML=this.dataset.fallback" data-fallback="' +
+        escapeHTML(buildBurgerSVG(item, size)) +
+        '"/>' +
+        '<img class="photo-cut" src="' +
+        cutSrc +
+        '" alt="" aria-hidden="true" loading="lazy" onerror="this.remove()"/>' +
+        '</div>'
+      );
+    }
+    return buildBurgerSVG(item, size);
+  };
+
+  // Promo de la noche
+  const renderPromoBanner = () => {
+    const banner = $('promoBanner');
+    if (!banner) return;
+    if (!config.promo || !config.promo.active || !config.promo.title) {
+      banner.hidden = true;
       return;
     }
-  }
-
-  state.cart[idx].qty += delta;
-  if (state.cart[idx].qty <= 0) {
-    state.cart.splice(idx, 1);
-  }
-
-  saveCart();
-  renderCart();
-}
-
-function removeFromCart(key) {
-  state.cart = state.cart.filter((line) => line.key !== key);
-  saveCart();
-  renderCart();
-}
-
-function setCartField(key, field, value) {
-  const line = state.cart.find((l) => l.key === key);
-  if (!line) return;
-  line[field] = value.slice(0, field === 'person' ? 40 : 140);
-  saveCart();
-}
-
-function getCartTotals() {
-  const subtotal = state.cart.reduce((sum, line) => {
-    const item = getItemById(line.id);
-    if (!item) return sum;
-    return sum + getUnitPrice(item, line.size) * line.qty;
-  }, 0);
-
-  const isDelivery = state.deliveryMode === 'delivery';
-  const shippingFee = getShippingFee();
-  const knownShipping = isDelivery && typeof shippingFee === 'number' ? shippingFee : 0;
-
-  return {
-    subtotal,
-    isDelivery,
-    shippingFee,
-    knownShipping,
-    total: subtotal + knownShipping,
+    banner.hidden = false;
+    if ($('promoBadge')) $('promoBadge').textContent = config.promo.badge || '🔥 PROMO DE LA NOCHE';
+    if ($('promoTitle')) $('promoTitle').textContent = config.promo.title;
+    if ($('promoText')) $('promoText').textContent = config.promo.subtitle || '';
+    if ($('promoPrice')) {
+      const priceStr = Number(config.promo.price) > 0 ? formatARS(config.promo.price) : '';
+      const oldStr =
+        Number(config.promo.oldPrice) > 0
+          ? ' <del style="opacity:.6;font-size:.85em">' + formatARS(config.promo.oldPrice) + '</del>'
+          : '';
+      $('promoPrice').innerHTML = priceStr + oldStr;
+    }
   };
-}
 
-function upsellHTML() {
-  const hasBurger = state.cart.some((line) => getItemById(line.id)?.isBurger);
-  if (!hasBurger) return '';
+  // Vitrina Hero
+  const getHeroBurgers = () => {
+    const burgers = menuItems.filter((i) => i.isBurger && i.available !== false);
+    return burgers.length ? burgers : menuItems.filter((i) => i.isBurger);
+  };
 
-  const inCart = new Set(state.cart.map((line) => line.id));
-  const picks = (SITE.upsellIds || [])
-    .map(getItemById)
-    .filter((item) => item && isItemAvailable(item) && !inCart.has(item.id))
-    .slice(0, 3);
+  const renderHeroShowcase = () => {
+    const burgers = getHeroBurgers();
+    if (!burgers.length) return;
+    if (state.heroIndex >= burgers.length) state.heroIndex = 0;
+    if (state.heroIndex < 0) state.heroIndex = burgers.length - 1;
 
-  if (!picks.length) return '';
+    const current = burgers[state.heroIndex];
+    if ($('heroBurgerName')) $('heroBurgerName').textContent = current.name;
+    if ($('heroBurgerPrice')) $('heroBurgerPrice').textContent = formatARS(current.basePrice);
+    if ($('heroBurgerDesc')) $('heroBurgerDesc').textContent = current.ingredients || '';
+    if ($('heroBurgerVisual')) $('heroBurgerVisual').innerHTML = renderVisualHTML(current, 'doble');
 
-  return `
-    <div class="upsell">
-      <h4 class="upsell__title">Sumá algo más a tu pedido</h4>
-      ${picks
+    const dots = $('heroDots');
+    if (dots) {
+      dots.innerHTML = burgers
         .map(
-          (item) => `
-          <div class="upsell__item">
-            <span class="upsell__emoji" aria-hidden="true">${escapeHTML(item.icon || '🍟')}</span>
-            <div class="upsell__info">
-              <strong>${escapeHTML(item.name)}</strong>
-              <small>${formatARS(item.basePrice)}</small>
-            </div>
-            <button type="button" class="upsell__btn" data-add-id="${escapeHTML(item.id)}">+ Agregar</button>
-          </div>
-        `
+          (b, idx) =>
+            '<button type="button" class="story-dot' +
+            (idx === state.heroIndex ? ' is-active' : '') +
+            '" data-hero-idx="' +
+            idx +
+            '" aria-label="Ver ' +
+            escapeHTML(b.name) +
+            '"></button>'
         )
-        .join('')}
-    </div>
-  `;
-}
-
-function renderCart() {
-  const container = $('#cartItemsContainer');
-  const badge = $('#cartCountBadge');
-  const subtotalEl = $('#cartSubtotal');
-  const shippingEl = $('#cartShipping');
-  const totalEl = $('#cartTotal');
-
-  const totalUnits = state.cart.reduce((sum, line) => sum + line.qty, 0);
-  const totals = getCartTotals();
-
-  if (badge) badge.textContent = String(totalUnits);
-  if (subtotalEl) subtotalEl.textContent = formatARS(totals.subtotal);
-  if (totalEl) totalEl.textContent = formatARS(totals.total);
-
-  if (shippingEl) {
-    if (!totals.isDelivery) {
-      shippingEl.textContent = 'Sin cargo (Retiro)';
-    } else if (typeof totals.shippingFee === 'number') {
-      shippingEl.textContent = totals.shippingFee === 0 ? 'Sin cargo' : formatARS(totals.shippingFee);
-    } else {
-      shippingEl.textContent = 'A confirmar por WhatsApp';
+        .join('');
     }
-  }
-
-  updateMobileBar(totalUnits, totals.total);
-
-  if (!container) return;
-
-  if (!state.cart.length) {
-    const burgersCount = MENU_ITEMS.filter((i) => i.isBurger).length;
-    container.innerHTML = `
-      <div class="cart-empty">
-        <p><strong>Tu pedido está vacío</strong></p>
-        <p>Elegí cualquiera de nuestras ${burgersCount} burgers oficiales para empezar.</p>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML =
-    state.cart
-      .map((line) => {
-        const item = getItemById(line.id);
-        if (!item) return '';
-        const soldOut = !isItemAvailable(item);
-        const unitPrice = getUnitPrice(item, line.size);
-        const sizeLabel = getSizeLabel(item, line.size);
-
-        return `
-          <div class="cart-item ${soldOut ? 'is-sold-out' : ''}">
-            <div class="cart-item__row">
-              <div class="cart-item__info">
-                <h4>${escapeHTML(item.name)}</h4>
-                <span class="cart-item__meta">${escapeHTML(sizeLabel)} · ${formatARS(unitPrice * line.qty)}</span>
-                ${soldOut ? '<span class="cart-item__soldout-tag">⚠️ Agotado por hoy — quitalo para continuar</span>' : ''}
-              </div>
-              <div class="cart-item__controls">
-                <button type="button" class="qty-btn" data-qty-key="${escapeHTML(line.key)}" data-delta="-1" aria-label="Restar unidad de ${escapeHTML(item.name)}">−</button>
-                <strong aria-live="polite">${line.qty}</strong>
-                <button type="button" class="qty-btn" data-qty-key="${escapeHTML(line.key)}" data-delta="1" aria-label="Sumar unidad de ${escapeHTML(item.name)}" ${soldOut ? 'disabled' : ''}>+</button>
-                <button type="button" class="qty-btn qty-btn--remove" data-remove-key="${escapeHTML(line.key)}" aria-label="Quitar ${escapeHTML(item.name)}">✕</button>
-              </div>
-            </div>
-            <div class="cart-item__inputs">
-              <input
-                type="text"
-                class="cart-item__person"
-                maxlength="40"
-                data-field="person"
-                data-line-key="${escapeHTML(line.key)}"
-                value="${escapeHTML(line.person || '')}"
-                placeholder="👤 ¿Para quién es?"
-                aria-label="¿Para quién es ${escapeHTML(item.name)}?"
-              />
-              <input
-                type="text"
-                class="cart-item__note"
-                maxlength="140"
-                data-field="note"
-                data-line-key="${escapeHTML(line.key)}"
-                value="${escapeHTML(line.note || '')}"
-                placeholder="📝 Aclaración (ej. sin pepinillos)"
-                aria-label="Aclaración para ${escapeHTML(item.name)}"
-              />
-            </div>
-          </div>
-        `;
-      })
-      .join('') + upsellHTML();
-}
-
-function isDrawerOpen() {
-  return $('#cartDrawer')?.classList.contains('is-open') || false;
-}
-
-function updateMobileBar(totalUnits, totalAmount) {
-  const bar = $('#mobileCartBar');
-  if (!bar) return;
-
-  const units = totalUnits ?? state.cart.reduce((sum, line) => sum + line.qty, 0);
-  const amount = totalAmount ?? getCartTotals().total;
-  const visible = units > 0 && !isDrawerOpen();
-
-  bar.hidden = !visible;
-  document.body.classList.toggle('has-cart-bar', visible);
-
-  const countEl = $('#mobileCartCount');
-  const totalEl = $('#mobileCartTotal');
-  if (countEl) countEl.textContent = `${units} ${units === 1 ? 'producto' : 'productos'}`;
-  if (totalEl) totalEl.textContent = formatARS(amount);
-}
-
-function openCartDrawer() {
-  const drawer = $('#cartDrawer');
-  const overlay = $('#cartOverlay');
-  if (!drawer || !overlay) return;
-
-  state.lastFocused = document.activeElement;
-  overlay.hidden = false;
-  drawer.inert = false;
-  drawer.setAttribute('aria-hidden', 'false');
-  drawer.classList.add('is-open');
-  document.body.classList.add('no-scroll');
-  $('#closeCartBtn')?.focus();
-  updateMobileBar();
-  track('open_cart', { items: state.cart.length });
-}
-
-function closeCartDrawer() {
-  const drawer = $('#cartDrawer');
-  const overlay = $('#cartOverlay');
-  if (!drawer || !overlay || !drawer.classList.contains('is-open')) return;
-
-  overlay.hidden = true;
-  drawer.classList.remove('is-open');
-  drawer.setAttribute('aria-hidden', 'true');
-  drawer.inert = true;
-  document.body.classList.remove('no-scroll');
-  updateMobileBar();
-  if (state.lastFocused && document.contains(state.lastFocused)) {
-    state.lastFocused.focus();
-  }
-}
-
-function trapFocusInDrawer(e) {
-  const drawer = $('#cartDrawer');
-  if (!drawer) return;
-  const focusable = [
-    ...drawer.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
-  ].filter((el) => !el.disabled && !el.hidden && el.getClientRects().length > 0);
-  if (!focusable.length) return;
-
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault();
-    first.focus();
-  }
-}
-
-// ============================================================================
-// PEDIDO WHATSAPP, REGISTRO EN SHEETS Y TICKET TÉRMICO ANIMADO
-// ============================================================================
-
-function buildWhatsAppOrderText(meta = createOrderMeta()) {
-  const name = $('#customerName')?.value.trim() || 'Sin nombre';
-  const address = $('#customerAddress')?.value.trim() || '';
-  const payment = $('#paymentMethod')?.value || 'Efectivo';
-  const notes = $('#orderNotes')?.value.trim() || '';
-  const totals = getCartTotals();
-  const zone = totals.isDelivery ? getSelectedZone() : null;
-
-  const deliveryLine = totals.isDelivery
-    ? `🛵 *Modalidad:* Delivery${zone ? ` (${zone.name})` : ''} — ${address || 'Dirección a confirmar'}`
-    : `🏪 *Modalidad:* Retiro en ${SITE.brand?.shortAddress || 'Colón 696 — Paraná'}`;
-
-  const lines = [
-    `🍔 *PEDIDO #${meta.code} — ${(SITE.brand?.name || 'BUENARDA').toUpperCase()}*`,
-    `🕒 *Hora:* ${meta.timeStr} hs (${meta.dateStr})`,
-    `👤 *Cliente:* ${name}`,
-    deliveryLine,
-    `💳 *Pago:* ${payment}`,
-    '',
-    '*Detalle del pedido:*',
-  ];
-
-  const hasGroupNames = state.cart.some((line) => line.person && line.person.trim() !== '');
-
-  if (hasGroupNames) {
-    const groups = new Map();
-    state.cart.forEach((line) => {
-      const person = line.person?.trim() || 'Para compartir / Sin asignar';
-      if (!groups.has(person)) groups.set(person, []);
-      groups.get(person).push(line);
-    });
-
-    groups.forEach((groupLines, person) => {
-      const personSubtotal = groupLines.reduce((acc, l) => {
-        const item = getItemById(l.id);
-        return acc + (item ? getUnitPrice(item, l.size) * l.qty : 0);
-      }, 0);
-
-      lines.push(`\n👤 *${person}* (${formatARS(personSubtotal)}):`);
-      groupLines.forEach((l) => {
-        const item = getItemById(l.id);
-        if (!item) return;
-        const unitPrice = getUnitPrice(item, l.size);
-        lines.push(`• ${l.qty}x ${item.name} (${getSizeLabel(item, l.size)}) — ${formatARS(unitPrice * l.qty)}`);
-        if (l.note) lines.push(`   ↳ _${l.note}_`);
-      });
-    });
-  } else {
-    state.cart.forEach((l) => {
-      const item = getItemById(l.id);
-      if (!item) return;
-      const unitPrice = getUnitPrice(item, l.size);
-      lines.push(`• ${l.qty}x ${item.name} (${getSizeLabel(item, l.size)}) — ${formatARS(unitPrice * l.qty)}`);
-      if (l.note) lines.push(`   ↳ _${l.note}_`);
-    });
-  }
-
-  lines.push('');
-  lines.push(`🧾 *Subtotal:* ${formatARS(totals.subtotal)}`);
-  if (totals.isDelivery) {
-    const shipText =
-      typeof totals.shippingFee === 'number'
-        ? totals.shippingFee === 0
-          ? 'Sin cargo'
-          : formatARS(totals.shippingFee)
-        : 'A confirmar';
-    lines.push(`🛵 *Envío:* ${shipText}`);
-  }
-  lines.push(`💰 *TOTAL ESTIMADO:* ${formatARS(totals.total)}`);
-
-  if (normalizeText(payment).includes('transferencia') && SITE.payment?.alias) {
-    lines.push(`📲 *Alias transferido:* ${SITE.payment.alias} _(adjunto comprobante)_`);
-  }
-  if (notes) lines.push(`📝 *Notas:* ${notes}`);
-
-  return lines.join('\n');
-}
-
-function logOrderToSheet(meta) {
-  const scriptUrl = SITE.appsScriptUrl?.trim();
-  if (!scriptUrl) return;
-
-  const name = $('#customerName')?.value.trim() || 'Sin nombre';
-  const address = $('#customerAddress')?.value.trim() || '';
-  const payment = $('#paymentMethod')?.value || 'Efectivo';
-  const notes = $('#orderNotes')?.value.trim() || '';
-  const totals = getCartTotals();
-  const zone = totals.isDelivery ? getSelectedZone() : null;
-
-  let burgersDoble = 0;
-  let burgersTriple = 0;
-  let totalUnidades = 0;
-
-  const productos = state.cart
-    .map((line) => {
-      const item = getItemById(line.id);
-      if (!item) return '';
-      totalUnidades += line.qty;
-      if (item.isBurger && line.size === 'doble') burgersDoble += line.qty;
-      if (item.isBurger && line.size === 'triple') burgersTriple += line.qty;
-
-      const suffix = !item.isBurger ? '' : ` [${line.size.toUpperCase()}]`;
-      const personTag = line.person ? ` [Para: ${line.person}]` : '';
-      const noteTag = line.note ? ` (${line.note})` : '';
-      return `${line.qty}x ${item.name}${suffix}${personTag}${noteTag}`;
-    })
-    .filter(Boolean)
-    .join(' | ');
-
-  const fullAddress = totals.isDelivery
-    ? `${zone ? `[${zone.name}] ` : ''}${address}`
-    : SITE.brand?.shortAddress || 'Colón 696 — Paraná';
-
-  const payload = {
-    codigo: meta.code,
-    fecha: meta.dateStr,
-    hora: meta.timeStr,
-    cliente: name,
-    modalidad: totals.isDelivery ? 'Delivery' : 'Retiro en local',
-    direccion: fullAddress,
-    pago: payment,
-    productos,
-    burgersDoble,
-    burgersTriple,
-    totalUnidades,
-    subtotal: totals.subtotal,
-    envio: totals.knownShipping,
-    total: totals.total,
-    notas: notes,
   };
 
-  try {
-    fetch(scriptUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      keepalive: true,
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-    }).catch(() => {});
-  } catch {
-    // Nunca interrumpir el pedido
-  }
-}
-
-function openTicketModal(meta, whatsappUrl) {
-  const overlay = $('#ticketOverlay');
-  if (!overlay) return;
-
-  const name = $('#customerName')?.value.trim() || 'Sin nombre';
-  const address = $('#customerAddress')?.value.trim() || '';
-  const payment = $('#paymentMethod')?.value || 'Efectivo';
-  const totals = getCartTotals();
-  const zone = totals.isDelivery ? getSelectedZone() : null;
-
-  $('#ticketBrand').textContent = (SITE.brand?.name || 'BUENARDA').toUpperCase();
-  $('#ticketAddress').textContent = SITE.brand?.fullAddress || 'Colón 696 · Paraná, Entre Ríos';
-  $('#ticketCode').textContent = `#${meta.code}`;
-  $('#ticketDateTime').textContent = `${meta.dateStr} · ${meta.timeStr} hs`;
-
-  const modeText = totals.isDelivery
-    ? `Delivery${zone ? ` · ${zone.name}` : ''} (${address})`
-    : `Retiro en ${SITE.brand?.streetOnly || 'Colón 696'}`;
-
-  $('#ticketCustomerInfo').innerHTML = `
-    <div><strong>Cliente:</strong> ${escapeHTML(name)}</div>
-    <div><strong>Entrega:</strong> ${escapeHTML(modeText)}</div>
-    <div><strong>Pago:</strong> ${escapeHTML(payment)}</div>
-  `;
-
-  $('#ticketItemsList').innerHTML = state.cart
-    .map((line) => {
-      const item = getItemById(line.id);
-      if (!item) return '';
-      const lineTotal = getUnitPrice(item, line.size) * line.qty;
-      return `
-        <div class="ticket-row">
-          <div class="ticket-row__main">
-            ${line.person ? `<span class="ticket-row__person">${escapeHTML(line.person)}</span>` : ''}
-            <strong>${line.qty}x ${escapeHTML(item.name)}</strong>
-            <span class="ticket-row__sub">${escapeHTML(getSizeLabel(item, line.size))}${line.note ? ` · ${escapeHTML(line.note)}` : ''}</span>
-          </div>
-          <span class="ticket-row__price">${formatARS(lineTotal)}</span>
-        </div>
-      `;
-    })
-    .join('');
-
-  const shipText = !totals.isDelivery
-    ? 'Sin cargo'
-    : typeof totals.shippingFee === 'number'
-      ? totals.shippingFee === 0
-        ? 'Sin cargo'
-        : formatARS(totals.shippingFee)
-      : 'A confirmar';
-
-  $('#ticketTotalsList').innerHTML = `
-    <div class="ticket-total-row"><span>Subtotal</span><span>${formatARS(totals.subtotal)}</span></div>
-    ${totals.isDelivery ? `<div class="ticket-total-row"><span>Envío</span><span>${shipText}</span></div>` : ''}
-    <div class="ticket-total-row ticket-total-row--grand"><span>TOTAL</span><span>${formatARS(totals.total)}</span></div>
-  `;
-
-  // Reinicia la animación de impresión térmica y sello
-  const ticketPaper = $('#thermalTicket');
-  const stamp = $('#ticketStamp');
-  if (ticketPaper) {
-    ticketPaper.style.animation = 'none';
-    void ticketPaper.offsetWidth;
-    ticketPaper.style.animation = '';
-  }
-  if (stamp) {
-    stamp.style.animation = 'none';
-    void stamp.offsetWidth;
-    stamp.style.animation = '';
-  }
-
-  const reopenBtn = $('#ticketReopenWaBtn');
-  if (reopenBtn) reopenBtn.href = whatsappUrl;
-
-  closeCartDrawer();
-  overlay.hidden = false;
-  document.body.classList.add('no-scroll');
-  reopenBtn?.focus();
-}
-
-function closeTicketModal() {
-  const overlay = $('#ticketOverlay');
-  if (!overlay || overlay.hidden) return;
-  overlay.hidden = true;
-  document.body.classList.remove('no-scroll');
-}
-
-function markInvalid(el, message) {
-  el.classList.add('is-invalid');
-  el.setAttribute('aria-invalid', 'true');
-  el.focus();
-  showToast(message);
-}
-
-function validateOrder() {
-  const soldOutLine = state.cart.find((line) => {
-    const item = getItemById(line.id);
-    return item && !isItemAvailable(item);
-  });
-  if (soldOutLine) {
-    const item = getItemById(soldOutLine.id);
-    showToast(`Quitá "${item?.name || soldOutLine.id}" porque se agotó por hoy`);
-    return false;
-  }
-
-  const nameEl = $('#customerName');
-  const addressEl = $('#customerAddress');
-
-  [nameEl, addressEl].forEach((el) => {
-    el?.classList.remove('is-invalid');
-    el?.removeAttribute('aria-invalid');
-  });
-
-  if (nameEl && nameEl.value.trim().length < 2) {
-    markInvalid(nameEl, 'Escribí tu nombre para el pedido');
-    return false;
-  }
-  if (state.deliveryMode === 'delivery' && addressEl && addressEl.value.trim().length < 5) {
-    markInvalid(addressEl, 'Escribí la dirección de entrega (calle y número)');
-    return false;
-  }
-  return true;
-}
-
-// ============================================================================
-// SINCRONIZACIÓN EN VIVO CON GOOGLE SHEETS (Config, Carta y Envios)
-// ============================================================================
-
-function toCsvUrl(rawUrl) {
-  const url = String(rawUrl || '').trim();
-  if (!url) return '';
-  if (url.includes('/pubhtml')) {
-    const base = url.replace('/pubhtml', '/pub');
-    return base.includes('output=csv') ? base : `${base}${base.includes('?') ? '&' : '?'}output=csv`;
-  }
-  return url;
-}
-
-function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    const next = text[i + 1];
-
-    if (inQuotes) {
-      if (ch === '"' && next === '"') {
-        field += '"';
-        i += 1;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        field += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ',') {
-      row.push(field.trim());
-      field = '';
-    } else if (ch === '\r' && next === '\n') {
-      row.push(field.trim());
-      rows.push(row);
-      row = [];
-      field = '';
-      i += 1;
-    } else if (ch === '\n' || ch === '\r') {
-      row.push(field.trim());
-      rows.push(row);
-      row = [];
-      field = '';
-    } else {
-      field += ch;
+  // Grilla de Carta
+  const getItemUnitPrice = (item, size) => {
+    const base = Number(item.basePrice) || 0;
+    if (item.isBurger && size === 'triple') {
+      return base + config.tripleExtraPrice;
     }
-  }
+    return base;
+  };
 
-  if (field.length > 0 || row.length > 0) {
-    row.push(field.trim());
-    rows.push(row);
-  }
+  const renderMenu = () => {
+    const grid = $('menuGrid');
+    if (!grid) return;
 
-  if (rows.length < 2) return [];
-  const headers = rows[0].map((h) => normalizeText(h));
-
-  return rows
-    .slice(1)
-    .filter((r) => r.some((cell) => cell !== ''))
-    .map((r) => {
-      const obj = {};
-      headers.forEach((h, idx) => {
-        obj[h] = r[idx] ?? '';
-      });
-      return obj;
-    });
-}
-
-function parsePrice(raw) {
-  const digits = String(raw ?? '').replace(/[^\d]/g, '');
-  return digits ? Number(digits) : NaN;
-}
-
-function parseBooleanFlag(raw, defaultValue = true) {
-  const val = normalizeText(raw);
-  if (!val) return defaultValue;
-  if (['no', 'false', '0', 'agotado', 'sin stock', 'inactivo'].includes(val)) return false;
-  if (['si', 'true', '1', 'disponible', 'ok', 'activo'].includes(val)) return true;
-  return defaultValue;
-}
-
-function applyConfigRows(rows) {
-  rows.forEach((r) => {
-    const key = normalizeText(r.clave || r.key || '');
-    const val = String(r.valor || r.value || '').trim();
-    if (!key) return;
-
-    if (key === 'precio_triple') {
-      const n = parsePrice(val);
-      if (Number.isFinite(n)) SITE.tripleExtraPrice = n;
-    } else if (key === 'costo_envio') {
-      if (!val || normalizeText(val) === 'confirmar') {
-        SITE.delivery = { ...(SITE.delivery || {}), fee: null };
-      } else {
-        const n = parsePrice(val);
-        if (Number.isFinite(n)) SITE.delivery = { ...(SITE.delivery || {}), fee: n };
-      }
-    } else if (key === 'whatsapp') {
-      const digits = val.replace(/[^\d]/g, '');
-      if (digits.length >= 10) SITE.whatsappNumber = digits;
-    } else if (key === 'usar_fotos') {
-      SITE.usePhotos = parseBooleanFlag(val, SITE.usePhotos);
-    } else if (key === 'color_primario') {
-      SITE.brand.primaryColor = val;
-    } else if (key === 'nombre_marca' && val) {
-      SITE.brand.name = val;
-    } else if (key === 'usuario_ig' && val) {
-      SITE.brand.handle = val.startsWith('@') ? val : `@${val}`;
-    } else if (key === 'direccion' && val) {
-      SITE.brand.fullAddress = val;
-      SITE.brand.shortAddress = val;
-      SITE.brand.streetOnly = val.split(',')[0].trim();
-    } else if (key === 'alias_pago' && val) {
-      SITE.payment.alias = val;
-    } else if (key === 'titular_pago' && val) {
-      SITE.payment.holder = val;
-    } else if (key === 'promo_activa') {
-      SITE.promo.active = parseBooleanFlag(val, SITE.promo.active);
-    } else if (key === 'promo_etiqueta' && val) {
-      SITE.promo.badge = val;
-    } else if (key === 'promo_titulo' && val) {
-      SITE.promo.title = val;
-    } else if ((key === 'promo_texto' || key === 'promo_subtitulo') && val) {
-      SITE.promo.subtitle = val;
-    } else if (key === 'promo_precio') {
-      const n = parsePrice(val);
-      if (Number.isFinite(n) && n > 0) SITE.promo.price = n;
-    } else if (key === 'promo_precio_anterior') {
-      const n = parsePrice(val);
-      SITE.promo.oldPrice = Number.isFinite(n) && n > 0 ? n : null;
-    } else if (key === 'promo_id' && val) {
-      SITE.promo.id = val;
-    } else if (key === 'hora_apertura') {
-      const h = Number(val);
-      if (Number.isFinite(h) && h >= 0 && h <= 23) SITE.hours.open = h;
-    } else if (key === 'hora_cierre') {
-      const h = Number(val);
-      if (Number.isFinite(h) && h >= 1 && h <= 24) SITE.hours.close = h;
-    } else if (key === 'dias_abiertos' && val) {
-      const days = val
-        .split(',')
-        .map((d) => Number(d.trim()))
-        .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
-      if (days.length > 0) SITE.hours.openDays = days;
-    }
-  });
-}
-
-function applyShippingRows(rows) {
-  const parsed = rows
-    .filter((r) => (r.zona || r.nombre) && parseBooleanFlag(r.activo ?? r.activa, true))
-    .map((r, idx) => {
-      const rawCost = String(r.costo ?? r.precio ?? '').trim();
-      const isConfirm = !rawCost || normalizeText(rawCost) === 'confirmar';
-      const n = isConfirm ? null : parsePrice(rawCost);
-      const name = String(r.zona || r.nombre).trim();
-      const slug = normalizeText(name).replace(/[^a-z0-9]+/g, '-') || `zona-${idx + 1}`;
-      return {
-        id: String(r.id || slug).trim(),
-        name,
-        fee: Number.isFinite(n) ? n : null,
-      };
+    const q = state.query.trim().toLowerCase();
+    const filtered = menuItems.filter((item) => {
+      const catOk = state.filter === 'all' || item.category === state.filter;
+      if (!catOk) return false;
+      if (!q) return true;
+      const haystack = (
+        (item.name || '') +
+        ' ' +
+        (item.ingredients || '') +
+        ' ' +
+        (item.badge || '')
+      ).toLowerCase();
+      return haystack.includes(q);
     });
 
-  if (parsed.length > 0) {
-    deliveryZones = parsed;
-    if (!deliveryZones.some((z) => z.id === state.deliveryZoneId)) {
-      state.deliveryZoneId = deliveryZones[0].id;
+    if (!filtered.length) {
+      grid.innerHTML =
+        '<div class="menu-empty"><p>No encontramos productos con ese filtro.</p></div>';
+      return;
     }
-  }
-}
 
-function applyMenuRows(rows) {
-  if (!rows.length) return;
+    grid.innerHTML = filtered
+      .map((item) => {
+        const isSoldOut = item.available === false;
+        const size = item.isBurger ? state.cardSizes[item.id] || 'doble' : 'unico';
+        const price = getItemUnitPrice(item, size);
 
-  rows.forEach((r) => {
-    const id = String(r.id || '').trim();
-    if (!id) return;
+        const sizeSelector = item.isBurger
+          ? '<div class="size-toggle" role="group" aria-label="Tamaño de medallones">' +
+            '<button type="button" class="size-btn' +
+            (size === 'doble' ? ' is-active' : '') +
+            '" data-size-id="' +
+            escapeHTML(item.id) +
+            '" data-size="doble"' +
+            (isSoldOut ? ' disabled' : '') +
+            '>Doble (x2)</button>' +
+            '<button type="button" class="size-btn' +
+            (size === 'triple' ? ' is-active' : '') +
+            '" data-size-id="' +
+            escapeHTML(item.id) +
+            '" data-size="triple"' +
+            (isSoldOut ? ' disabled' : '') +
+            '>Triple (+' +
+            formatARS(config.tripleExtraPrice) +
+            ')</button>' +
+            '</div>'
+          : '';
 
-    const existing = MENU_ITEMS.find((entry) => entry.id === id);
-    const parsedPrice = parsePrice(r.precio);
-    const available = parseBooleanFlag(r.disponible, true);
+        return (
+          '<article class="burger-card' +
+          (isSoldOut ? ' is-sold-out' : '') +
+          '" data-card-id="' +
+          escapeHTML(item.id) +
+          '">' +
+          '<div class="burger-card__top">' +
+          '<span class="burger-card__badge">' +
+          escapeHTML(item.badge || (item.isBurger ? 'Smash' : 'Extra')) +
+          '</span>' +
+          (isSoldOut
+            ? '<span class="burger-card__badge burger-card__badge--soldout">Agotado por hoy</span>'
+            : '') +
+          '</div>' +
+          '<div class="burger-card__visual">' +
+          renderVisualHTML(item, size) +
+          '</div>' +
+          '<div class="burger-card__body">' +
+          '<h3 class="burger-card__title">' +
+          escapeHTML(item.name) +
+          '</h3>' +
+          '<p class="burger-card__desc">' +
+          escapeHTML(item.ingredients || '') +
+          '</p>' +
+          sizeSelector +
+          '<div class="burger-card__footer">' +
+          '<strong class="burger-card__price">' +
+          formatARS(price) +
+          '</strong>' +
+          '<button type="button" class="btn-add" data-add-id="' +
+          escapeHTML(item.id) +
+          '"' +
+          (isSoldOut ? ' disabled' : '') +
+          '>' +
+          (isSoldOut ? 'Sin Stock' : '+ Agregar') +
+          '</button>' +
+          '</div>' +
+          '</div>' +
+          '</article>'
+        );
+      })
+      .join('');
+  };
+
+  // Carrito y Checkout
+  const addToCart = (itemId, forcedSize) => {
+    const item = menuItems.find((i) => i.id === itemId);
+    if (!item) return;
+    if (item.available === false) {
+      showToast('Este producto está agotado por hoy.');
+      return;
+    }
+
+    const size = item.isBurger ? forcedSize || state.cardSizes[item.id] || 'doble' : 'unico';
+    const unitPrice = getItemUnitPrice(item, size);
+
+    const existing = state.cart.find(
+      (c) => c.id === item.id && c.size === size && !c.person && !c.note
+    );
 
     if (existing) {
-      if (r.nombre) existing.name = r.nombre;
-      if (r.categoria) existing.category = normalizeText(r.categoria);
-      if (r.etiqueta) existing.badge = r.etiqueta;
-      if (Number.isFinite(parsedPrice) && parsedPrice > 0) existing.basePrice = parsedPrice;
-      if (r.ingredientes) existing.ingredients = r.ingredientes;
-      if (r.icono) existing.icon = r.icono;
-      existing.available = available;
+      existing.qty += 1;
     } else {
-      const isBurger = parseBooleanFlag(r.es_burger, normalizeText(r.categoria) !== 'extras');
-      MENU_ITEMS.push({
-        id,
-        name: r.nombre || id.toUpperCase(),
-        category: normalizeText(r.categoria) || (isBurger ? 'especiales' : 'extras'),
-        badge: r.etiqueta || 'Nueva',
-        isBurger,
-        icon: r.icono || (isBurger ? '🍔' : '🍟'),
-        layers: isBurger ? { cheese: 'cheddar', sauce: 'buenarda' } : undefined,
-        basePrice: Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : 10000,
-        ingredients: r.ingredientes || '',
-        available,
+      state.cart.push({
+        uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        id: item.id,
+        name: item.name,
+        isBurger: Boolean(item.isBurger),
+        size,
+        unitPrice,
+        qty: 1,
+        person: '',
+        note: '',
       });
     }
-  });
-}
 
-async function syncFromSheets() {
-  const menuUrl = toCsvUrl(SITE.sheet?.menuCsvUrl);
-  const configUrl = toCsvUrl(SITE.sheet?.configCsvUrl);
-  const shippingUrl = toCsvUrl(SITE.sheet?.shippingCsvUrl);
-  if (!menuUrl && !configUrl && !shippingUrl) return;
-
-  const fetchCSV = async (url) => {
-    if (!url) return null;
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    if (text.trim().startsWith('<')) return null; // Evita parsear HTML si la pestaña no es pública
-    return parseCSV(text);
-  };
-
-  const [configRes, menuRes, shippingRes] = await Promise.allSettled([
-    fetchCSV(configUrl),
-    fetchCSV(menuUrl),
-    fetchCSV(shippingUrl),
-  ]);
-
-  let updated = false;
-  if (configRes.status === 'fulfilled' && configRes.value) {
-    applyConfigRows(configRes.value);
-    updated = true;
-  }
-  if (menuRes.status === 'fulfilled' && menuRes.value) {
-    applyMenuRows(menuRes.value);
-    updated = true;
-  }
-  if (shippingRes.status === 'fulfilled' && shippingRes.value) {
-    applyShippingRows(shippingRes.value);
-    updated = true;
-  }
-
-  if (updated) {
-    applyBrandBindings();
-    updateOpenStatus();
-    renderNightPromo();
-    renderDeliveryZones();
-    syncDeliveryUI();
-    syncAliasCard();
-    renderHeroShowcase();
-    renderMenuGrid();
+    saveCart();
     renderCart();
-  }
-}
-
-// ============================================================================
-// VIDEO "RECORRIDO POR EL LOCAL"
-// ============================================================================
-
-function initTourVideo() {
-  const player = $('#tourPlayer');
-  const video = $('#tourVideo');
-  if (!player || !video) return;
-
-  const sourceEl = $('#tourVideoSource');
-  const errorEl = $('#tourError');
-  const playBtn = $('#tourPlayBtn');
-  const toggleBtn = $('#tourToggleBtn');
-  const soundBtn = $('#tourSoundBtn');
-  const soundLabel = $('#tourSoundLabel');
-  const progress = $('#tourProgress');
-  const progressFill = $('#tourProgressFill');
-
-  let pausedByUser = false;
-
-  const showVideoError = () => {
-    player.classList.add('has-error');
-    if (errorEl) errorEl.hidden = false;
+    showToast('Agregado: ' + item.name + (item.isBurger ? ' (' + size.toUpperCase() + ')' : ''));
   };
 
-  const clearVideoError = () => {
-    player.classList.remove('has-error');
-    if (errorEl) errorEl.hidden = true;
-  };
-
-  sourceEl?.addEventListener('error', showVideoError);
-  video.addEventListener('error', showVideoError);
-  video.addEventListener('loadeddata', clearVideoError);
-
-  if (video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
-    showVideoError();
-  }
-
-  const safePlay = () => {
-    const attempt = video.play();
-    if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {});
-  };
-
-  if (prefersReducedMotion) video.pause();
-
-  const userToggle = () => {
-    if (video.paused) {
-      pausedByUser = false;
-      safePlay();
+  const addPromoToCart = () => {
+    if (!config.promo || !config.promo.active) return;
+    const promoId = config.promo.id || 'promo-noche';
+    const existing = state.cart.find((c) => c.id === promoId);
+    if (existing) {
+      existing.qty += 1;
     } else {
-      pausedByUser = true;
-      video.pause();
+      state.cart.push({
+        uid: 'promo-' + Date.now().toString(36),
+        id: promoId,
+        name: config.promo.title,
+        isBurger: false,
+        size: 'promo',
+        unitPrice: Number(config.promo.price) || 0,
+        qty: 1,
+        person: '',
+        note: config.promo.subtitle || '',
+      });
     }
+    saveCart();
+    renderCart();
+    openCart();
   };
 
-  const syncPlayState = () => {
-    const playing = !video.paused && !video.ended;
-    player.classList.toggle('is-playing', playing);
-    toggleBtn?.setAttribute('aria-label', playing ? 'Pausar video' : 'Reproducir video');
+  const getShippingCost = () => {
+    if (state.deliveryMode !== 'delivery') return 0;
+    if (deliveryZones.length > 0) {
+      const z = deliveryZones.find((zone) => zone.id === state.selectedZoneId) || deliveryZones[0];
+      if (!z) return null;
+      return z.fee == null || z.fee === '' ? null : Number(z.fee);
+    }
+    return config.delivery.fee == null ? null : Number(config.delivery.fee);
   };
 
-  const syncSoundState = () => {
-    const unmuted = !video.muted;
-    player.classList.toggle('is-unmuted', unmuted);
-    soundBtn?.setAttribute('aria-pressed', String(unmuted));
-    soundBtn?.setAttribute('aria-label', unmuted ? 'Silenciar video' : 'Activar sonido');
-    if (soundLabel) soundLabel.textContent = unmuted ? 'Silenciar' : 'Activar sonido';
+  const renderDeliveryZones = () => {
+    const select = $('deliveryZone');
+    if (!select) return;
+    if (!deliveryZones.length) {
+      select.innerHTML = '<option value="">Envío a confirmar por WhatsApp</option>';
+      return;
+    }
+    if (!deliveryZones.some((z) => z.id === state.selectedZoneId)) {
+      state.selectedZoneId = deliveryZones[0].id;
+    }
+    select.innerHTML = deliveryZones
+      .map((z) => {
+        const feeText = z.fee == null ? 'A confirmar' : formatARS(z.fee);
+        return (
+          '<option value="' +
+          escapeHTML(z.id) +
+          '"' +
+          (z.id === state.selectedZoneId ? ' selected' : '') +
+          '>' +
+          escapeHTML(z.name) +
+          ' (' +
+          feeText +
+          ')</option>'
+        );
+      })
+      .join('');
   };
 
-  playBtn?.addEventListener('click', userToggle);
-  toggleBtn?.addEventListener('click', userToggle);
-  video.addEventListener('click', userToggle);
+  const renderCart = () => {
+    const container = $('cartItemsContainer');
+    const totalUnits = state.cart.reduce((acc, c) => acc + c.qty, 0);
+    const subtotal = state.cart.reduce((acc, c) => acc + c.unitPrice * c.qty, 0);
 
-  soundBtn?.addEventListener('click', () => {
-    video.muted = !video.muted;
-    if (!video.muted) {
-      track('tour_video_sound_on');
-      if (video.paused) {
-        pausedByUser = false;
-        safePlay();
+    if ($('cartCountBadge')) $('cartCountBadge').textContent = String(totalUnits);
+
+    const mobileBar = $('mobileCartBar');
+    if (mobileBar) {
+      mobileBar.hidden = totalUnits === 0;
+      if ($('mobileCartCount')) {
+        $('mobileCartCount').textContent =
+          totalUnits + (totalUnits === 1 ? ' producto' : ' productos');
+      }
+      if ($('mobileCartTotal')) $('mobileCartTotal').textContent = formatARS(subtotal);
+    }
+
+    if (container) {
+      if (!state.cart.length) {
+        container.innerHTML =
+          '<div class="cart-empty">' +
+          '<p>Tu pedido está vacío.</p>' +
+          '<small>Elegí tus burgers en la carta para armar la comanda.</small>' +
+          '</div>';
+      } else {
+        const itemsHtml = state.cart
+          .map((c) => {
+            const sizeLabel =
+              c.size === 'triple' ? ' · TRIPLE' : c.size === 'doble' ? ' · DOBLE' : '';
+            return (
+              '<div class="cart-item" data-uid="' +
+              escapeHTML(c.uid) +
+              '">' +
+              '<div class="cart-item__head">' +
+              '<div>' +
+              '<strong>' +
+              escapeHTML(c.name) +
+              sizeLabel +
+              '</strong>' +
+              '<div class="cart-item__unit">' +
+              formatARS(c.unitPrice) +
+              ' c/u</div>' +
+              '</div>' +
+              '<div class="qty-controls">' +
+              '<button type="button" class="qty-btn" data-qty-act="dec" data-uid="' +
+              escapeHTML(c.uid) +
+              '">−</button>' +
+              '<span>' +
+              c.qty +
+              '</span>' +
+              '<button type="button" class="qty-btn" data-qty-act="inc" data-uid="' +
+              escapeHTML(c.uid) +
+              '">+</button>' +
+              '</div>' +
+              '</div>' +
+              '<div class="cart-item__extras">' +
+              '<input type="text" class="cart-item__input" data-field="person" data-uid="' +
+              escapeHTML(c.uid) +
+              '" value="' +
+              escapeHTML(c.person || '') +
+              '" placeholder="👤 ¿Para quién es? (opcional)"/>' +
+              '<input type="text" class="cart-item__input" data-field="note" data-uid="' +
+              escapeHTML(c.uid) +
+              '" value="' +
+              escapeHTML(c.note || '') +
+              '" placeholder="📝 Aclaración (ej. sin pepinillos)"/>' +
+              '</div>' +
+              '</div>'
+            );
+          })
+          .join('');
+
+        // Sugerencias de acompañamientos
+        const upsells = config.upsellIds
+          .map((id) => menuItems.find((m) => m.id === id && m.available !== false))
+          .filter((m) => m && !state.cart.some((c) => c.id === m.id));
+
+        const upsellHtml = upsells.length
+          ? '<div class="cart-upsell">' +
+            '<small>¿SUMÁS PAPAS O BEBIDA?</small>' +
+            '<div class="cart-upsell__list">' +
+            upsells
+              .map(
+                (u) =>
+                  '<button type="button" class="upsell-chip" data-add-id="' +
+                  escapeHTML(u.id) +
+                  '">+ ' +
+                  escapeHTML(u.name) +
+                  ' (' +
+                  formatARS(u.basePrice) +
+                  ')</button>'
+              )
+              .join('') +
+            '</div>' +
+            '</div>'
+          : '';
+
+        container.innerHTML = itemsHtml + upsellHtml;
       }
     }
-  });
 
-  video.addEventListener('play', syncPlayState);
-  video.addEventListener('playing', syncPlayState);
-  video.addEventListener('pause', syncPlayState);
-  video.addEventListener('ended', syncPlayState);
-  video.addEventListener('volumechange', syncSoundState);
+    const shipping = getShippingCost();
+    const shippingRow = $('cartShippingRow');
+    if (shippingRow) {
+      shippingRow.hidden = state.deliveryMode !== 'delivery';
+    }
+    if ($('cartShipping')) {
+      $('cartShipping').textContent = shipping == null ? 'A confirmar' : formatARS(shipping);
+    }
+    if ($('cartSubtotal')) $('cartSubtotal').textContent = formatARS(subtotal);
+    if ($('cartTotal')) {
+      const grandTotal = subtotal + (typeof shipping === 'number' ? shipping : 0);
+      $('cartTotal').textContent =
+        formatARS(grandTotal) + (state.deliveryMode === 'delivery' && shipping == null ? ' + envío' : '');
+    }
+  };
 
-  video.addEventListener('timeupdate', () => {
-    if (!video.duration || !progressFill || !progress) return;
-    const pct = (video.currentTime / video.duration) * 100;
-    progressFill.style.width = `${pct}%`;
-    progress.setAttribute('aria-valuenow', String(Math.round(pct)));
-  });
+  const openCart = () => {
+    const drawer = $('cartDrawer');
+    const overlay = $('cartOverlay');
+    if (!drawer || !overlay) return;
+    overlay.hidden = false;
+    drawer.removeAttribute('inert');
+    drawer.setAttribute('aria-hidden', 'false');
+    drawer.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  };
 
-  progress?.addEventListener('click', (e) => {
-    if (!video.duration) return;
-    const rect = progress.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    video.currentTime = ratio * video.duration;
-  });
+  const closeCart = () => {
+    const drawer = $('cartDrawer');
+    const overlay = $('cartOverlay');
+    if (!drawer || !overlay) return;
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.setAttribute('inert', '');
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+  };
 
-  if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            if (!prefersReducedMotion && !pausedByUser) safePlay();
-          } else if (!video.paused) {
-            video.pause();
-          }
+  // Armado de pedido WhatsApp, Ticket y Registro en Google Sheets
+  const getOrderTimestamp = () => {
+    const now = new Date();
+    const code = '#BN-' + Math.floor(1000 + Math.random() * 9000);
+    try {
+      const fecha = new Intl.DateTimeFormat('es-AR', {
+        timeZone: config.timeZone,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(now);
+      const hora = new Intl.DateTimeFormat('es-AR', {
+        timeZone: config.timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(now);
+      return { code, fecha, hora: hora + ' hs' };
+    } catch (e) {
+      return {
+        code,
+        fecha: now.toLocaleDateString('es-AR'),
+        hora: now.toTimeString().slice(0, 5) + ' hs',
+      };
+    }
+  };
+
+  const buildOrderPayload = () => {
+    const customer = ($('customerName') ? $('customerName').value : '').trim();
+    const address = ($('customerAddress') ? $('customerAddress').value : '').trim();
+    const payment = $('paymentMethod') ? $('paymentMethod').value : 'Efectivo';
+    const notes = ($('orderNotes') ? $('orderNotes').value : '').trim();
+    const { code, fecha, hora } = getOrderTimestamp();
+
+    const subtotal = state.cart.reduce((acc, c) => acc + c.unitPrice * c.qty, 0);
+    const shipping = getShippingCost();
+    const total = subtotal + (typeof shipping === 'number' ? shipping : 0);
+
+    let burgersDoble = 0;
+    let burgersTriple = 0;
+    let totalUnidades = 0;
+
+    state.cart.forEach((c) => {
+      totalUnidades += c.qty;
+      if (c.isBurger) {
+        if (c.size === 'triple') burgersTriple += c.qty;
+        else burgersDoble += c.qty;
+      }
+    });
+
+    const zoneObj =
+      state.deliveryMode === 'delivery'
+        ? deliveryZones.find((z) => z.id === state.selectedZoneId)
+        : null;
+
+    const modalidadLabel =
+      state.deliveryMode === 'delivery'
+        ? 'Delivery' + (zoneObj ? ' (' + zoneObj.name + ')' : '')
+        : 'Retiro en Local';
+
+    const lines = [
+      '*NUEVO PEDIDO — ' + config.brand.name + '*',
+      'Comanda: *' + code + '* (' + fecha + ' · ' + hora + ')',
+      'Cliente: *' + customer + '*',
+      'Modalidad: *' + modalidadLabel + '*',
+    ];
+
+    if (state.deliveryMode === 'delivery') {
+      lines.push('Dirección: *' + address + '*');
+    }
+    lines.push('Medio de pago: *' + payment + '*');
+    lines.push('');
+    lines.push('*DETALLE DEL PEDIDO:*');
+
+    const hasPeople = state.cart.some((c) => (c.person || '').trim());
+    if (hasPeople) {
+      const groups = {};
+      state.cart.forEach((c) => {
+        const who = (c.person || '').trim() || 'General';
+        if (!groups[who]) groups[who] = [];
+        groups[who].push(c);
+      });
+      Object.keys(groups).forEach((who) => {
+        let personTotal = 0;
+        lines.push('👤 *' + who + ':*');
+        groups[who].forEach((c) => {
+          const lineSub = c.unitPrice * c.qty;
+          personTotal += lineSub;
+          const sz = c.size === 'triple' ? ' (TRIPLE)' : c.size === 'doble' ? ' (DOBLE)' : '';
+          const nt = c.note ? ' [' + c.note + ']' : '';
+          lines.push('  • ' + c.qty + 'x ' + c.name + sz + nt + ' — ' + formatARS(lineSub));
         });
-      },
-      { threshold: [0, 0.5] }
-    );
-    observer.observe(player);
-  }
+        lines.push('  _Subtotal ' + who + ': ' + formatARS(personTotal) + '_');
+      });
+    } else {
+      state.cart.forEach((c) => {
+        const sz = c.size === 'triple' ? ' (TRIPLE)' : c.size === 'doble' ? ' (DOBLE)' : '';
+        const nt = c.note ? ' [' + c.note + ']' : '';
+        lines.push(
+          '• ' + c.qty + 'x ' + c.name + sz + nt + ' — ' + formatARS(c.unitPrice * c.qty)
+        );
+      });
+    }
 
-  syncPlayState();
-  syncSoundState();
-}
+    lines.push('');
+    lines.push('Subtotal: ' + formatARS(subtotal));
+    if (state.deliveryMode === 'delivery') {
+      lines.push('Envío: ' + (shipping == null ? 'A confirmar' : formatARS(shipping)));
+    }
+    lines.push('*TOTAL: ' + formatARS(total) + '*');
 
-// ============================================================================
-// RESEÑAS Y ANIMACIONES DE ENTRADA
-// ============================================================================
+    if (notes) {
+      lines.push('Notas: ' + notes);
+    }
 
-function renderReviews() {
-  const section = $('#resenas');
-  const list = $('#reviewsList');
-  if (!section || !list) return;
+    const productosResumen = state.cart
+      .map((c) => {
+        const sz = c.size === 'triple' ? ' Triple' : c.size === 'doble' ? ' Doble' : '';
+        return c.qty + 'x ' + c.name + sz;
+      })
+      .join(' | ');
 
-  if (!Array.isArray(REVIEWS) || REVIEWS.length === 0) {
-    section.hidden = true;
-    return;
-  }
+    return {
+      code,
+      fecha,
+      hora,
+      customer,
+      modalidadLabel,
+      address: state.deliveryMode === 'delivery' ? address : 'Retiro en local',
+      payment,
+      notes,
+      subtotal,
+      shipping,
+      total,
+      burgersDoble,
+      burgersTriple,
+      totalUnidades,
+      productosResumen,
+      whatsappText: lines.join('\n'),
+    };
+  };
 
-  list.innerHTML = REVIEWS.map(
-    (r) => `
-      <figure class="review-card reveal">
-        <blockquote>“${escapeHTML(r.text)}”</blockquote>
-        <figcaption><strong>${escapeHTML(r.name)}</strong>${r.source ? ` · ${escapeHTML(r.source)}` : ''}</figcaption>
-      </figure>
-    `
-  ).join('');
-  section.hidden = false;
-}
+  const logOrderToSheet = (order) => {
+    if (!config.appsScriptUrl) return;
+    try {
+      fetch(config.appsScriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        keepalive: true,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          codigo: order.code,
+          fecha: order.fecha,
+          hora: order.hora,
+          cliente: order.customer,
+          modalidad: order.modalidadLabel,
+          direccion: order.address,
+          pago: order.payment,
+          productos: order.productosResumen,
+          burgersDoble: order.burgersDoble,
+          burgersTriple: order.burgersTriple,
+          totalUnidades: order.totalUnidades,
+          subtotal: order.subtotal,
+          envio: typeof order.shipping === 'number' ? order.shipping : 0,
+          total: order.total,
+          notas: order.notes,
+        }),
+      }).catch(() => {});
+    } catch (e) {
+      // Silencioso para no interrumpir WhatsApp
+    }
+  };
 
-function initReveal() {
-  const targets = $$('.reveal:not(.is-visible)');
-  if (prefersReducedMotion || !('IntersectionObserver' in window)) {
-    targets.forEach((el) => el.classList.add('is-visible'));
-    return;
-  }
+  const openTicketModal = (order, waUrl) => {
+    const modal = $('ticketModal');
+    if (!modal) return;
 
-  const observer = new IntersectionObserver(
-    (entries, obs) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          obs.unobserve(entry.target);
+    if ($('ticketBrand')) $('ticketBrand').textContent = config.brand.name;
+    if ($('ticketCode')) $('ticketCode').textContent = order.code;
+    if ($('ticketDateTime')) $('ticketDateTime').textContent = order.fecha + ' · ' + order.hora;
+    if ($('ticketCustomer')) $('ticketCustomer').textContent = order.customer;
+    if ($('ticketMode')) {
+      $('ticketMode').textContent =
+        state.deliveryMode === 'delivery'
+          ? order.modalidadLabel + ' — ' + order.address
+          : order.modalidadLabel;
+    }
+
+    if ($('ticketItems')) {
+      $('ticketItems').innerHTML = state.cart
+        .map((c) => {
+          const sz = c.size === 'triple' ? ' (TRIPLE)' : c.size === 'doble' ? ' (DOBLE)' : '';
+          return (
+            '<div class="ticket-item-row">' +
+            '<span>' +
+            c.qty +
+            'x ' +
+            escapeHTML(c.name) +
+            sz +
+            '</span>' +
+            '<strong>' +
+            formatARS(c.unitPrice * c.qty) +
+            '</strong>' +
+            '</div>'
+          );
+        })
+        .join('');
+    }
+
+    if ($('ticketSubtotal')) $('ticketSubtotal').textContent = formatARS(order.subtotal);
+    if ($('ticketShippingRow')) {
+      $('ticketShippingRow').hidden = state.deliveryMode !== 'delivery';
+    }
+    if ($('ticketShipping')) {
+      $('ticketShipping').textContent =
+        order.shipping == null ? 'A confirmar' : formatARS(order.shipping);
+    }
+    if ($('ticketTotal')) $('ticketTotal').textContent = formatARS(order.total);
+
+    if ($('ticketTransferWrap')) {
+      $('ticketTransferWrap').hidden = order.payment === 'Efectivo';
+    }
+    if ($('ticketWhatsappLink')) {
+      $('ticketWhatsappLink').setAttribute('href', waUrl);
+    }
+
+    modal.hidden = false;
+  };
+
+  const handleCheckout = () => {
+    if (!state.cart.length) {
+      showToast('Agregá al menos un producto al pedido.');
+      return;
+    }
+    const customerInput = $('customerName');
+    const addressInput = $('customerAddress');
+    const customer = (customerInput ? customerInput.value : '').trim();
+    const address = (addressInput ? addressInput.value : '').trim();
+
+    if (!customer) {
+      showToast('Por favor ingresá tu nombre.');
+      if (customerInput) customerInput.focus();
+      return;
+    }
+    if (state.deliveryMode === 'delivery' && !address) {
+      showToast('Por favor ingresá la dirección de entrega.');
+      if (addressInput) addressInput.focus();
+      return;
+    }
+
+    const order = buildOrderPayload();
+    const waUrl =
+      'https://wa.me/' + config.whatsappNumber + '?text=' + encodeURIComponent(order.whatsappText);
+
+    logOrderToSheet(order);
+    closeCart();
+    openTicketModal(order, waUrl);
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // Sincronización en vivo con Google Sheets (CSV)
+  const toCsvUrl = (url) => {
+    if (!url) return '';
+    let clean = String(url).trim();
+    if (clean.includes('/pubhtml')) {
+      clean = clean.replace('/pubhtml', '/pub');
+      if (!clean.includes('output=csv')) {
+        clean += (clean.includes('?') ? '&' : '?') + 'output=csv';
+      }
+    }
+    return clean;
+  };
+
+  const parseCSV = (text) => {
+    const rows = [];
+    let row = [];
+    let cell = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (inQuotes) {
+        if (ch === '"' && next === '"') {
+          cell += '"';
+          i += 1;
+        } else if (ch === '"') {
+          inQuotes = false;
+        } else {
+          cell += ch;
+        }
+      } else if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        row.push(cell.trim());
+        cell = '';
+      } else if (ch === '\r' && next === '\n') {
+        row.push(cell.trim());
+        rows.push(row);
+        row = [];
+        cell = '';
+        i += 1;
+      } else if (ch === '\n' || ch === '\r') {
+        row.push(cell.trim());
+        rows.push(row);
+        row = [];
+        cell = '';
+      } else {
+        cell += ch;
+      }
+    }
+    if (cell.length > 0 || row.length > 0) {
+      row.push(cell.trim());
+      rows.push(row);
+    }
+    return rows;
+  };
+
+  const syncFromSheets = async () => {
+    const configUrl = toCsvUrl(config.sheet.configCsvUrl);
+    const menuUrl = toCsvUrl(config.sheet.menuCsvUrl);
+    const shippingUrl = toCsvUrl(config.sheet.shippingCsvUrl);
+
+    if (configUrl) {
+      try {
+        const res = await fetch(configUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const rows = parseCSV(await res.text());
+          rows.slice(1).forEach((r) => {
+            const key = (r[0] || '').toLowerCase();
+            const val = r[1] || '';
+            if (!key || val === '') return;
+            if (key === 'nombre_marca' || key === 'nombre_local') config.brand.name = val;
+            if (key === 'usuario_ig' || key === 'instagram_handle') config.brand.handle = val;
+            if (key === 'direccion') config.brand.fullAddress = val;
+            if (key === 'color_primario' || key === 'color_principal') config.brand.primaryColor = val;
+            if (key === 'whatsapp') config.whatsappNumber = val.replace(/\D/g, '');
+            if (key === 'alias_pago') config.payment.alias = val;
+            if (key === 'titular_pago') config.payment.holder = val;
+            if (key === 'precio_triple' && !isNaN(Number(val))) config.tripleExtraPrice = Number(val);
+            if (key === 'costo_envio') {
+              config.delivery.fee = isNaN(Number(val)) ? null : Number(val);
+            }
+            if (key === 'hora_apertura' && !isNaN(Number(val))) config.hours.open = Number(val);
+            if (key === 'hora_cierre' && !isNaN(Number(val))) config.hours.close = Number(val);
+            if (key === 'dias_abiertos' || key === 'dias_abierto') {
+              config.hours.openDays = val
+                .split(',')
+                .map((d) => Number(d.trim()))
+                .filter((n) => !isNaN(n));
+            }
+            if (key === 'promo_activa') config.promo.active = isYes(val);
+            if (key === 'promo_etiqueta') config.promo.badge = val;
+            if (key === 'promo_titulo') config.promo.title = val;
+            if (key === 'promo_subtitulo' || key === 'promo_texto') config.promo.subtitle = val;
+            if (key === 'promo_precio' && !isNaN(Number(val))) config.promo.price = Number(val);
+            if (key === 'promo_precio_anterior' && !isNaN(Number(val))) config.promo.oldPrice = Number(val);
+            if (key === 'usar_fotos') config.usePhotos = isYes(val);
+          });
+          applyBrandBindings();
+          updateOpenStatus();
+          renderPromoBanner();
+        }
+      } catch (e) {
+        // Mantener respaldo local
+      }
+    }
+
+    if (menuUrl) {
+      try {
+        const res = await fetch(menuUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const rows = parseCSV(await res.text());
+          const headers = (rows[0] || []).map((h) => h.toLowerCase());
+          const idx = (name, fallback) => {
+            const pos = headers.indexOf(name);
+            return pos >= 0 ? pos : fallback;
+          };
+
+          const parsed = rows
+            .slice(1)
+            .map((r) => {
+              const id = r[idx('id', 0)] || '';
+              const name = r[idx('nombre', 1)] || '';
+              const price = Number(String(r[idx('precio', 4)] || '').replace(/[^\d]/g, ''));
+              if (!id || !name || !price) return null;
+
+              const existing = menuItems.find((m) => m.id === id) || {};
+              const cat = (r[idx('categoria', 2)] || existing.category || 'clasicas').toLowerCase();
+              const dispVal = r[idx('disponible', 6)];
+              const burgerVal = r[idx('es_burger', 7)];
+
+              return Object.assign({}, existing, {
+                id,
+                name,
+                category: cat,
+                badge: r[idx('etiqueta', 3)] || existing.badge || '',
+                basePrice: price,
+                ingredients: r[idx('ingredientes', 5)] || existing.ingredients || '',
+                available: dispVal != null && dispVal !== '' ? !isNo(dispVal) : true,
+                isBurger:
+                  burgerVal != null && burgerVal !== ''
+                    ? isYes(burgerVal)
+                    : existing.isBurger != null
+                    ? existing.isBurger
+                    : cat !== 'extras',
+                icon: r[idx('icono', 8)] || existing.icon || '🍔',
+              });
+            })
+            .filter(Boolean);
+
+          if (parsed.length > 0) {
+            menuItems = parsed;
+            renderHeroShowcase();
+            renderMenu();
+            renderCart();
+          }
+        }
+      } catch (e) {
+        // Mantener respaldo local
+      }
+    }
+
+    if (shippingUrl) {
+      try {
+        const res = await fetch(shippingUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const rows = parseCSV(await res.text());
+          const zones = rows
+            .slice(1)
+            .map((r, i) => {
+              const id = r[0] || 'zona-' + i;
+              const name = r[1] || '';
+              const rawCost = r[2] || '';
+              const active = r[3] == null || r[3] === '' ? true : !isNo(r[3]);
+              if (!name || !active) return null;
+              const numCost = Number(String(rawCost).replace(/[^\d]/g, ''));
+              return {
+                id,
+                name,
+                fee: rawCost.toLowerCase().includes('confirmar') || !numCost ? null : numCost,
+              };
+            })
+            .filter(Boolean);
+
+          if (zones.length > 0) {
+            deliveryZones = zones;
+            renderDeliveryZones();
+            renderCart();
+          }
+        }
+      } catch (e) {
+        // Mantener respaldo local
+      }
+    }
+  };
+
+  // Reseñas y Video del local
+  const renderReviews = () => {
+    const section = $('resenas');
+    const list = $('reviewsList');
+    if (!section || !list || !reviewsListData.length) return;
+    section.hidden = false;
+    list.innerHTML = reviewsListData
+      .map(
+        (r) =>
+          '<article class="review-card">' +
+          '<p>“' +
+          escapeHTML(r.text) +
+          '”</p>' +
+          '<strong>' +
+          escapeHTML(r.name) +
+          '</strong>' +
+          '</article>'
+      )
+      .join('');
+  };
+
+  const initTourVideo = () => {
+    const video = $('tourVideo');
+    if (!video) return;
+    const playBtn = $('tourPlayBtn');
+    const toggleBtn = $('tourToggleBtn');
+    const soundBtn = $('tourSoundBtn');
+    const soundLabel = $('tourSoundLabel');
+    const progressFill = $('tourProgressFill');
+    const tourError = $('tourError');
+
+    video.addEventListener('error', () => {
+      if (tourError) tourError.hidden = false;
+      if (playBtn) playBtn.hidden = true;
+    });
+
+    const togglePlay = () => {
+      if (video.paused) {
+        video.play().catch(() => {});
+        if (playBtn) playBtn.hidden = true;
+      } else {
+        video.pause();
+        if (playBtn) playBtn.hidden = false;
+      }
+    };
+
+    if (playBtn) playBtn.addEventListener('click', togglePlay);
+    if (toggleBtn) toggleBtn.addEventListener('click', togglePlay);
+
+    if (soundBtn) {
+      soundBtn.addEventListener('click', () => {
+        video.muted = !video.muted;
+        soundBtn.setAttribute('aria-pressed', String(!video.muted));
+        if (soundLabel) {
+          soundLabel.textContent = video.muted ? 'Activar sonido' : 'Silenciar';
         }
       });
-    },
-    { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
-  );
-
-  targets.forEach((el) => observer.observe(el));
-}
-
-// ============================================================================
-// INICIALIZACIÓN Y EVENTOS
-// ============================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  loadCart();
-  loadCheckoutPrefs();
-
-  applyBrandBindings();
-  updateOpenStatus();
-  setInterval(updateOpenStatus, 60 * 1000);
-
-  renderNightPromo();
-  renderDeliveryZones();
-  syncDeliveryUI();
-  syncAliasCard();
-  renderHeroShowcase();
-  renderMenuGrid();
-  renderCart();
-  renderReviews();
-  initReveal();
-  initTourVideo();
-  syncFromSheets();
-
-  syncNavHeight();
-  window.addEventListener('resize', syncNavHeight);
-  if (document.fonts?.ready) document.fonts.ready.then(syncNavHeight);
-
-  // Hero Showcase
-  $('#prevHeroBurger')?.addEventListener('click', () => {
-    const count = getHeroBurgers().length;
-    if (!count) return;
-    state.heroIndex = (state.heroIndex - 1 + count) % count;
-    renderHeroShowcase();
-  });
-
-  $('#nextHeroBurger')?.addEventListener('click', () => {
-    const count = getHeroBurgers().length;
-    if (!count) return;
-    state.heroIndex = (state.heroIndex + 1) % count;
-    renderHeroShowcase();
-  });
-
-  $('#heroDots')?.addEventListener('click', (e) => {
-    const dot = e.target.closest('[data-hero-dot]');
-    if (!dot) return;
-    state.heroIndex = Number(dot.dataset.heroDot);
-    renderHeroShowcase();
-  });
-
-  $('#addHeroBurgerBtn')?.addEventListener('click', (e) => {
-    const burgers = getHeroBurgers();
-    const current = burgers[state.heroIndex % burgers.length];
-    if (current) addToCart(current.id, 'doble', e.currentTarget);
-  });
-
-  // Botón de Promo / Combo de la Noche
-  $('#addPromoBtn')?.addEventListener('click', (e) => {
-    if (!SITE.promo?.active) return;
-    const promoId = SITE.promo.id || 'promo-noche';
-    addToCart(promoId, 'unico', e.currentTarget);
-  });
-
-  // Filtros y búsqueda de carta
-  $('#filterTabs')?.addEventListener('click', (e) => {
-    const tab = e.target.closest('[data-filter]');
-    if (!tab) return;
-    state.filter = tab.dataset.filter;
-    $$('.filter-tab').forEach((btn) => btn.classList.remove('is-active'));
-    tab.classList.add('is-active');
-    renderMenuGrid();
-  });
-
-  $('#menuSearchInput')?.addEventListener('input', (e) => {
-    state.search = e.target.value;
-    renderMenuGrid();
-  });
-
-  // Interacciones en la grilla (Doble/Triple con animación Smash + Agregar + Reset filtros)
-  $('#menuGrid')?.addEventListener('click', (e) => {
-    const resetBtn = e.target.closest('#resetFiltersBtn');
-    if (resetBtn) {
-      state.filter = 'all';
-      state.search = '';
-      const searchInput = $('#menuSearchInput');
-      if (searchInput) searchInput.value = '';
-      $$('.filter-tab').forEach((btn) => btn.classList.toggle('is-active', btn.dataset.filter === 'all'));
-      renderMenuGrid();
-      return;
     }
 
-    const sizeBtn = e.target.closest('[data-size-item]');
-    if (sizeBtn && !sizeBtn.disabled) {
-      const id = sizeBtn.dataset.sizeItem;
-      const nextSize = sizeBtn.dataset.sizeVal;
-      const prevSize = state.selectedSizes[id] || 'doble';
-      state.selectedSizes[id] = nextSize;
-      updateSingleCard(id, { smashTrigger: nextSize === 'triple' && prevSize !== 'triple' });
-      return;
-    }
-
-    const addBtn = e.target.closest('[data-add-id]');
-    if (addBtn && !addBtn.disabled) {
-      addToCart(addBtn.dataset.addId, null, addBtn);
-    }
-  });
-
-  // Mantener presionado en móvil para ver corte transversal de foto
-  document.addEventListener('pointerdown', (e) => {
-    const stack = e.target.closest('[data-photo-stack]');
-    if (stack) stack.classList.add('is-cut-preview');
-  });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach((evt) => {
-    document.addEventListener(evt, () => {
-      $$('[data-photo-stack].is-cut-preview').forEach((el) => el.classList.remove('is-cut-preview'));
+    video.addEventListener('timeupdate', () => {
+      if (progressFill && video.duration) {
+        progressFill.style.width = (video.currentTime / video.duration) * 100 + '%';
+      }
     });
-  });
-
-  // Abrir / cerrar carrito
-  $('#openCartBtn')?.addEventListener('click', openCartDrawer);
-  $('#mobileCartBar')?.addEventListener('click', openCartDrawer);
-  $('#closeCartBtn')?.addEventListener('click', closeCartDrawer);
-  $('#cartOverlay')?.addEventListener('click', closeCartDrawer);
-
-  // Acciones dentro del carrito
-  const cartContainer = $('#cartItemsContainer');
-  cartContainer?.addEventListener('click', (e) => {
-    const qtyBtn = e.target.closest('[data-qty-key]');
-    if (qtyBtn && !qtyBtn.disabled) {
-      updateCartQty(qtyBtn.dataset.qtyKey, Number(qtyBtn.dataset.delta));
-      return;
-    }
-
-    const removeBtn = e.target.closest('[data-remove-key]');
-    if (removeBtn) {
-      removeFromCart(removeBtn.dataset.removeKey);
-      return;
-    }
-
-    const addBtn = e.target.closest('[data-add-id]');
-    if (addBtn) {
-      addToCart(addBtn.dataset.addId, null, null);
-    }
-  });
-
-  cartContainer?.addEventListener('input', (e) => {
-    const input = e.target.closest('[data-line-key]');
-    if (input) {
-      setCartField(input.dataset.lineKey, input.dataset.field || 'note', input.value);
-    }
-  });
-
-  // Modalidad Retiro / Delivery
-  $$('.delivery-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.deliveryMode = btn.dataset.delivery;
-      $('#customerAddress')?.classList.remove('is-invalid');
-      syncDeliveryUI();
-      saveCheckoutPrefs();
-      renderCart();
-    });
-  });
-
-  // Zona de delivery, nombre, dirección y medio de pago
-  $('#deliveryZoneSelect')?.addEventListener('change', (e) => {
-    state.deliveryZoneId = e.target.value;
-    saveCheckoutPrefs();
-    renderCart();
-  });
-
-  ['#customerName', '#customerAddress', '#paymentMethod'].forEach((selector) => {
-    const el = $(selector);
-    el?.addEventListener('input', () => {
-      el.classList.remove('is-invalid');
-      el.removeAttribute('aria-invalid');
-      saveCheckoutPrefs();
-    });
-    el?.addEventListener('change', () => {
-      saveCheckoutPrefs();
-      if (el.id === 'paymentMethod') syncAliasCard();
-    });
-  });
-
-  // Copiar Alias bancario en 1 toque
-  $('#copyAliasBtn')?.addEventListener('click', async (e) => {
-    const alias = SITE.payment?.alias || '';
-    if (!alias) return;
-    const btn = e.currentTarget;
-    try {
-      await navigator.clipboard.writeText(alias);
-      btn.textContent = '✓ ¡Copiado!';
-      btn.classList.add('is-copied');
-      showToast(`✓ Alias "${alias}" copiado al portapapeles`);
-      setTimeout(() => {
-        btn.textContent = '📋 Copiar Alias';
-        btn.classList.remove('is-copied');
-      }, 2000);
-    } catch {
-      showToast(`Alias: ${alias}`);
-    }
-  });
-
-  // Enviar por WhatsApp + Registrar venta en Sheets + Ticket Térmico Animado
-  $('#sendWhatsappBtn')?.addEventListener('click', () => {
-    if (!state.cart.length) {
-      showToast('Agregá al menos un producto al pedido');
-      return;
-    }
-    if (!validateOrder()) return;
-
-    const meta = createOrderMeta();
-    const totals = getCartTotals();
-    const text = buildWhatsAppOrderText(meta);
-    const url = `https://wa.me/${SITE.whatsappNumber}?text=${encodeURIComponent(text)}`;
-
-    logOrderToSheet(meta);
-    openTicketModal(meta, url);
-
-    track('send_whatsapp_order', {
-      order_id: meta.code,
-      value: totals.total,
-      currency: 'ARS',
-      items: state.cart.reduce((acc, i) => acc + i.qty, 0),
-      mode: state.deliveryMode,
-    });
-
-    window.open(url, '_blank', 'noopener,noreferrer');
-  });
-
-  // Cerrar Ticket Térmico
-  $('#closeTicketBtn')?.addEventListener('click', closeTicketModal);
-  $('#ticketOverlay')?.addEventListener('click', (e) => {
-    if (e.target.id === 'ticketOverlay') closeTicketModal();
-  });
-
-  // Copiar detalle del pedido
-  $('#copyOrderBtn')?.addEventListener('click', async () => {
-    if (!state.cart.length) {
-      showToast('Tu pedido está vacío');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(buildWhatsAppOrderText());
-      showToast('✓ Pedido copiado al portapapeles');
-      track('copy_order');
-    } catch {
-      showToast('No se pudo copiar automáticamente');
-    }
-  });
-
-  // Menú móvil
-  const mobileBtn = $('#mobileMenuBtn');
-  const navLinks = $('#navLinks');
-  const setMobileMenu = (open) => {
-    if (!navLinks || !mobileBtn) return;
-    navLinks.classList.toggle('is-open', open);
-    mobileBtn.setAttribute('aria-expanded', String(open));
   };
 
-  mobileBtn?.addEventListener('click', () => setMobileMenu(!navLinks?.classList.contains('is-open')));
-  navLinks?.addEventListener('click', (e) => {
-    if (e.target.closest('a')) setMobileMenu(false);
-  });
-
-  // Accesibilidad por teclado
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      const ticketOverlay = $('#ticketOverlay');
-      if (ticketOverlay && !ticketOverlay.hidden) {
-        closeTicketModal();
-      } else if (isDrawerOpen()) {
-        closeCartDrawer();
-      } else if (navLinks?.classList.contains('is-open')) {
-        setMobileMenu(false);
-        mobileBtn?.focus();
-      }
-    } else if (e.key === 'Tab' && isDrawerOpen()) {
-      trapFocusInDrawer(e);
+  // Eventos de interfaz
+  const bindEvents = () => {
+    if ($('mobileMenuBtn') && $('navLinks')) {
+      $('mobileMenuBtn').addEventListener('click', () => {
+        const nav = $('navLinks');
+        const opened = nav.classList.toggle('is-open');
+        $('mobileMenuBtn').setAttribute('aria-expanded', String(opened));
+      });
     }
-  });
+
+    if ($('prevHeroBurger')) {
+      $('prevHeroBurger').addEventListener('click', () => {
+        state.heroIndex -= 1;
+        renderHeroShowcase();
+      });
+    }
+    if ($('nextHeroBurger')) {
+      $('nextHeroBurger').addEventListener('click', () => {
+        state.heroIndex += 1;
+        renderHeroShowcase();
+      });
+    }
+    if ($('heroDots')) {
+      $('heroDots').addEventListener('click', (e) => {
+        const dot = e.target.closest('[data-hero-idx]');
+        if (!dot) return;
+        state.heroIndex = Number(dot.dataset.heroIdx) || 0;
+        renderHeroShowcase();
+      });
+    }
+    if ($('addHeroBurgerBtn')) {
+      $('addHeroBurgerBtn').addEventListener('click', () => {
+        const burgers = getHeroBurgers();
+        if (burgers[state.heroIndex]) addToCart(burgers[state.heroIndex].id, 'doble');
+      });
+    }
+    if ($('promoActionBtn')) {
+      $('promoActionBtn').addEventListener('click', addPromoToCart);
+    }
+
+    if ($('filterTabs')) {
+      $('filterTabs').addEventListener('click', (e) => {
+        const tab = e.target.closest('[data-filter]');
+        if (!tab) return;
+        state.filter = tab.dataset.filter || 'all';
+        document.querySelectorAll('#filterTabs .filter-tab').forEach((btn) => {
+          btn.classList.toggle('is-active', btn === tab);
+        });
+        renderMenu();
+      });
+    }
+
+    if ($('menuSearchInput')) {
+      $('menuSearchInput').addEventListener('input', (e) => {
+        state.query = e.target.value || '';
+        renderMenu();
+      });
+    }
+
+    if ($('menuGrid')) {
+      $('menuGrid').addEventListener('click', (e) => {
+        const sizeBtn = e.target.closest('[data-size-id]');
+        if (sizeBtn) {
+          state.cardSizes[sizeBtn.dataset.sizeId] = sizeBtn.dataset.size;
+          renderMenu();
+          return;
+        }
+        const addBtn = e.target.closest('[data-add-id]');
+        if (addBtn) {
+          addToCart(addBtn.dataset.addId);
+        }
+      });
+    }
+
+    if ($('openCartBtn')) $('openCartBtn').addEventListener('click', openCart);
+    if ($('mobileCartBar')) $('mobileCartBar').addEventListener('click', openCart);
+    if ($('closeCartBtn')) $('closeCartBtn').addEventListener('click', closeCart);
+    if ($('cartOverlay')) $('cartOverlay').addEventListener('click', closeCart);
+
+    if ($('cartItemsContainer')) {
+      $('cartItemsContainer').addEventListener('click', (e) => {
+        const qtyBtn = e.target.closest('[data-qty-act]');
+        if (qtyBtn) {
+          const idx = state.cart.findIndex((c) => c.uid === qtyBtn.dataset.uid);
+          if (idx >= 0) {
+            if (qtyBtn.dataset.qtyAct === 'inc') {
+              state.cart[idx].qty += 1;
+            } else {
+              state.cart[idx].qty -= 1;
+              if (state.cart[idx].qty <= 0) state.cart.splice(idx, 1);
+            }
+            saveCart();
+            renderCart();
+          }
+          return;
+        }
+        const upsellBtn = e.target.closest('[data-add-id]');
+        if (upsellBtn) {
+          addToCart(upsellBtn.dataset.addId);
+        }
+      });
+
+      $('cartItemsContainer').addEventListener('input', (e) => {
+        const input = e.target.closest('[data-field]');
+        if (!input) return;
+        const item = state.cart.find((c) => c.uid === input.dataset.uid);
+        if (item) {
+          item[input.dataset.field] = input.value;
+          saveCart();
+        }
+      });
+    }
+
+    document.querySelectorAll('.delivery-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.deliveryMode = btn.dataset.delivery || 'retiro';
+        document.querySelectorAll('.delivery-btn').forEach((b) => {
+          const active = b === btn;
+          b.classList.toggle('is-active', active);
+          b.setAttribute('aria-pressed', String(active));
+        });
+        const isDel = state.deliveryMode === 'delivery';
+        if ($('deliveryZoneWrap')) $('deliveryZoneWrap').hidden = !isDel;
+        if ($('customerAddress')) $('customerAddress').hidden = !isDel;
+        renderCart();
+      });
+    });
+
+    if ($('deliveryZone')) {
+      $('deliveryZone').addEventListener('change', (e) => {
+        state.selectedZoneId = e.target.value;
+        renderCart();
+      });
+    }
+
+    if ($('paymentMethod')) {
+      $('paymentMethod').addEventListener('change', (e) => {
+        const box = $('transferBox');
+        if (box) box.hidden = e.target.value === 'Efectivo';
+      });
+    }
+
+    if ($('copyAliasBtn')) {
+      $('copyAliasBtn').addEventListener('click', () =>
+        copyText(config.payment.alias, 'Alias copiado: ' + config.payment.alias)
+      );
+    }
+    if ($('ticketCopyAliasBtn')) {
+      $('ticketCopyAliasBtn').addEventListener('click', () =>
+        copyText(config.payment.alias, 'Alias copiado: ' + config.payment.alias)
+      );
+    }
+
+    if ($('copyOrderBtn')) {
+      $('copyOrderBtn').addEventListener('click', () => {
+        if (!state.cart.length) {
+          showToast('Tu pedido está vacío.');
+          return;
+        }
+        const order = buildOrderPayload();
+        copyText(order.whatsappText, 'Detalle del pedido copiado');
+      });
+    }
+
+    if ($('sendWhatsappBtn')) {
+      $('sendWhatsappBtn').addEventListener('click', handleCheckout);
+    }
+
+    if ($('closeTicketBtn')) {
+      $('closeTicketBtn').addEventListener('click', () => {
+        if ($('ticketModal')) $('ticketModal').hidden = true;
+      });
+    }
+  };
+
+  // Arranque ordenado
+  applyBrandBindings();
+  updateOpenStatus();
+  renderPromoBanner();
+  renderHeroShowcase();
+  renderMenu();
+  renderDeliveryZones();
+  renderCart();
+  renderReviews();
+  initTourVideo();
+  bindEvents();
+  syncFromSheets();
 });
