@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BUENARDA | Hamburguesas de Alta Calidad · Paraná</title>
+  <meta name="description" content="Hamburguesas de alta calidad | 100% Carne. Abierto de miércoles a domingo en Colón 696, Paraná, Entre Ríos." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <!-- Barra superior de estado y horarios -->
+  <div class="top-banner">
+    <div class="container top-banner__inner">
+      <span class="status-pill">
+        <span class="status-dot" aria-hidden="true"></span>
+        MIÉRCOLES A DOMINGO · 20:00 A 00:00 HS
+      </span>
+      <span class="top-banner__location">📍 Colón 696 — Paraná, Entre Ríos</span>
+    </div>
+  </div>
+
+  <!-- Navegación principal -->
+  <header class="navbar" id="navbar">
+    <div class="container navbar__inner">
+      <a href="#inicio" class="brand" aria-label="BUENARDA Inicio">
+        <svg class="brand__logo" viewBox="0 0 100 100" width="46" height="46" role="img" aria-label="Logo Buenarda">
+          <circle cx="50" cy="50" r="48" fill="#0D0D0D" stroke="#2A2A2A" stroke-width="2" />
+          <!-- Barra superior amarilla cheddar -->
+          <rect x="27" y="18" width="46" height="11" rx="4" fill="#F5B700" />
+          <!-- Cuerpo blanco de la B -->
+          <path d="M27 33 H57 C66 33 72 37.5 72 43.5 C72 47.5 69 50.2 64.5 51.5 C70 52.8 73.5 56 73.5 60.8 C73.5 67 67 71 57.5 71 H27 V61 H56 C60 61 62.5 59.5 62.5 57.2 C62.5 55 60 53.5 56 53.5 H27 V46.5 H55 C59 46.5 61.2 45 61.2 42.8 C61.2 40.6 59 39.2 55 39.2 H27 Z" fill="#F7F7F5" />
+          <!-- Barra inferior amarilla cheddar -->
+          <rect x="27" y="75" width="46" height="11" rx="4" fill="#F5B700" />
+        </svg>
+        <div class="brand__text">
+          <span class="brand__title">BUENARDA</span>
+          <span class="brand__handle">@buenardaparana</span>
+        </div>
+      </a>
+
+      <nav class="nav-links" id="navLinks" aria-label="Navegación principal">
+        <a href="#inicio" class="nav-links__item">Inicio</a>
+        <a href="#carta" class="nav-links__item">Carta Oficial</a>
+        <a href="#calidad" class="nav-links__item">100% Carne</a>
+        <a href="#local" class="nav-links__item">Conocé el Local</a>
+        <a href="#ubicacion" class="nav-links__item">Local & Horarios</a>
+      </nav>
+
+      <div class="navbar__actions">
+        <button type="button" class="btn-cart" id="openCartBtn" aria-label="Abrir carrito de pedido">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+          <span class="btn-cart__label">Tu Pedido</span>
+          <span class="btn-cart__badge" id="cartCountBadge">0</span>
+        </button>
+
+        <button type="button" class="btn-menu-toggle" id="mobileMenuBtn" aria-label="Abrir menú" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero" id="inicio">
+      <div class="container hero__grid">
+        <div class="hero__content">
+          <div class="hero__eyebrow">
+            <span class="badge-cheddar">100% CARNE VACUNA</span>
+            <span class="badge-outline">PARANÁ · ENTRE RÍOS</span>
+          </div>
+          <h1 class="hero__title">
+            HAMBURGUESAS DE <span class="text-cheddar">ALTA CALIDAD</span>
+          </h1>
+          <p class="hero__subtitle">
+            Pan especial Buenarda, doble medallón 100% carne vacuna con costra perfecta,
+            queso cheddar fundido x4 y nuestras salsas artesanales de la casa.
+          </p>
+
+          <div class="hero__cta">
+            <a href="#carta" class="btn btn--primary">Ver Carta Completa</a>
+            <a href="#ubicacion" class="btn btn--ghost">Cómo Llegar · Colón 696</a>
+          </div>
+
+          <div class="hero__stats">
+            <div class="stat-item">
+              <strong class="stat-item__value">8</strong>
+              <span class="stat-item__label">Burgers de Autor</span>
+            </div>
+            <div class="stat-divider" aria-hidden="true"></div>
+            <div class="stat-item">
+              <strong class="stat-item__value">100%</strong>
+              <span class="stat-item__label">Carne Vacuna</span>
+            </div>
+            <div class="stat-divider" aria-hidden="true"></div>
+            <div class="stat-item">
+              <strong class="stat-item__value">+17.5K</strong>
+              <span class="stat-item__label">Comunidad IG</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Poster interactivo estilo Stories oficiales -->
+        <div class="hero__showcase">
+          <div class="story-card" id="heroShowcaseCard">
+            <div class="story-card__top">
+              <span class="story-card__tag">DESTACADA DE LA CARTA</span>
+              <div class="story-card__controls">
+                <button type="button" class="story-nav-btn" id="prevHeroBurger" aria-label="Hamburguesa anterior">‹</button>
+                <button type="button" class="story-nav-btn" id="nextHeroBurger" aria-label="Siguiente hamburguesa">›</button>
+              </div>
+            </div>
+
+            <div class="story-card__visual" id="heroBurgerVisual"></div>
+
+            <div class="story-card__info">
+              <div class="story-card__header">
+                <h2 class="story-card__name" id="heroBurgerName">7TH STREET</h2>
+                <span class="story-card__price" id="heroBurgerPrice">$11.800</span>
+              </div>
+              <p class="story-card__desc" id="heroBurgerDesc">
+                PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR AMERICANO X4, PEPINILLOS, CEBOLLA FRESCA BRUNOISE, SALSA THOUSAND ISLAND.
+              </p>
+              <div class="story-card__dots" id="heroDots" role="tablist" aria-label="Selector de hamburguesas destacadas"></div>
+              <button type="button" class="btn btn--primary btn--full" id="addHeroBurgerBtn">
+                + Agregar al Pedido
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Carta Oficial -->
+    <section class="menu-section" id="carta">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">CARTA OFICIAL @BUENARDAPARANA</span>
+          <h2 class="section-title">NUESTRAS <span class="text-cheddar">BURGERS</span> & ACOMPAÑAMIENTOS</h2>
+          <p class="section-subtitle">
+            Todas nuestras hamburguesas salen en versión <strong>Doble (x4 Queso)</strong> o podés llevarlas a <strong>Triple (+1 Medallón +2 Queso)</strong>.
+          </p>
+        </div>
+
+        <!-- Barra de filtros y búsqueda -->
+        <div class="menu-toolbar">
+          <div class="filter-tabs" id="filterTabs" role="tablist" aria-label="Filtrar menú por categoría">
+            <button type="button" class="filter-tab is-active" data-filter="all">Todas (8 Burgers)</button>
+            <button type="button" class="filter-tab" data-filter="clasicas">Clásicas</button>
+            <button type="button" class="filter-tab" data-filter="bacon">Con Bacon</button>
+            <button type="button" class="filter-tab" data-filter="especiales">Especiales</button>
+            <button type="button" class="filter-tab" data-filter="extras">Papas & Bebidas</button>
+          </div>
+
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="search"
+              id="menuSearchInput"
+              class="search-box__input"
+              placeholder="Buscar por ingrediente (ej. bacon, provolone, alioli...)"
+              aria-label="Buscar hamburguesa o ingrediente"
+            />
+          </div>
+        </div>
+
+        <!-- Grilla dinámica de productos -->
+        <div class="menu-grid" id="menuGrid"></div>
+      </div>
+    </section>
+
+    <!-- Pilares de Calidad -->
+    <section class="quality-section" id="calidad">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">EL SELLO BUENARDA</span>
+          <h2 class="section-title">POR QUÉ SON <span class="text-cheddar">BUENARDAS</span></h2>
+        </div>
+
+        <div class="pillars-grid">
+          <article class="pillar-card">
+            <div class="pillar-card__icon">🥩</div>
+            <h3 class="pillar-card__title">100% Carne Vacuna</h3>
+            <p class="pillar-card__text">
+              Blend seleccionado preparado en el día y sellado a la plancha para lograr una costra jugosa llena de sabor.
+            </p>
+          </article>
+
+          <article class="pillar-card">
+            <div class="pillar-card__icon">🍔</div>
+            <h3 class="pillar-card__title">Pan Especial Buenarda</h3>
+            <p class="pillar-card__text">
+              Esponjoso, tierno y levemente tostado con manteca para contener cada medallón y salsa sin desarmarse.
+            </p>
+          </article>
+
+          <article class="pillar-card">
+            <div class="pillar-card__icon">🧀</div>
+            <h3 class="pillar-card__title">Quesos x4 Fundidos</h3>
+            <p class="pillar-card__text">
+              Cheddar americano, cheddar ahumado o provolone fundidos entre capa y capa de carne caliente.
+            </p>
+          </article>
+
+          <article class="pillar-card">
+            <div class="pillar-card__icon">🥣</div>
+            <h3 class="pillar-card__title">Salsas de Autor</h3>
+            <p class="pillar-card__text">
+              Salsa Buenarda, Thousand Island, Royale, Alioli y Barbacoa elaboradas para potenciar cada combinación.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Video: Recorrido por el local -->
+    <section class="tour-section" id="local">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">RECORRIDO POR EL LOCAL</span>
+          <h2 class="section-title">CONOCÉ <span class="text-cheddar">BUENARDA</span> POR DENTRO</h2>
+          <p class="section-subtitle">
+            Desde la fachada en Colón 696 hasta la barra: así te esperamos de miércoles a domingo.
+          </p>
+        </div>
+
+        <figure class="video-player" id="tourPlayer">
+          <video
+            class="video-player__media"
+            id="tourVideo"
+            poster="assets/buenarda-local-poster.jpg"
+            preload="metadata"
+            muted
+            loop
+            playsinline
+            aria-label="Recorrido en video por el local de Buenarda, Colón 696, Paraná"
+          >
+            <source src="assets/buenarda-local.mp4" type="video/mp4" />
+            Tu navegador no soporta video HTML5.
+          </video>
+
+          <button type="button" class="video-player__play" id="tourPlayBtn" aria-label="Reproducir video">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.1-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z" />
+            </svg>
+          </button>
+
+          <div class="video-player__bar">
+            <button type="button" class="video-player__ctrl" id="tourToggleBtn" aria-label="Pausar video">
+              <svg class="icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="6" y="5" width="4" height="14" rx="1" />
+                <rect x="14" y="5" width="4" height="14" rx="1" />
+              </svg>
+              <svg class="icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.1-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z" />
+              </svg>
+            </button>
+
+            <div class="video-player__progress" id="tourProgress" role="progressbar" aria-label="Progreso del video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <span class="video-player__progress-fill" id="tourProgressFill"></span>
+            </div>
+
+            <button type="button" class="video-player__ctrl video-player__ctrl--sound" id="tourSoundBtn" aria-label="Activar sonido" aria-pressed="false">
+              <svg class="icon-muted" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+                <path d="m22 9-6 6" />
+                <path d="m16 9 6 6" />
+              </svg>
+              <svg class="icon-sound" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                <path d="M19 5a10 10 0 0 1 0 14" />
+              </svg>
+              <span class="video-player__ctrl-label" id="tourSoundLabel">Activar sonido</span>
+            </button>
+          </div>
+        </figure>
+
+        <ul class="tour-chips">
+          <li>📍 Colón 696, Paraná</li>
+          <li>🕒 Mié a Dom · 20:00 a 00:00 hs</li>
+          <li>🍔 Welcome Burgers Lovers</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Ubicación y Horarios -->
+    <section class="location-section" id="ubicacion">
+      <div class="container location-grid">
+        <div class="location-card">
+          <span class="section-eyebrow">VENÍ A BUSCAR LA TUYA O PEDÍ DELIVERY</span>
+          <h2 class="location-card__title">COLÓN 696 <span class="text-cheddar">· PARANÁ</span></h2>
+          <p class="location-card__desc">
+            Estamos en el corazón de Paraná, Entre Ríos. Hacé tu pedido directo desde la web y recibilo listo para enviar por WhatsApp.
+          </p>
+
+          <ul class="info-list">
+            <li class="info-list__item">
+              <span class="info-list__badge">📍</span>
+              <div>
+                <strong>Dirección del Local</strong>
+                <span>Colón 696, E3100 Paraná, Entre Ríos</span>
+              </div>
+            </li>
+            <li class="info-list__item">
+              <span class="info-list__badge">🕒</span>
+              <div>
+                <strong>Días y Horarios</strong>
+                <span>Miércoles a Domingo · 20:00 a 00:00 hs</span>
+              </div>
+            </li>
+            <li class="info-list__item">
+              <span class="info-list__badge">📸</span>
+              <div>
+                <strong>Instagram Oficial</strong>
+                <span><a href="https://www.instagram.com/buenardaparana/" target="_blank" rel="noopener noreferrer">@buenardaparana</a> (17,5 mil seguidores)</span>
+              </div>
+            </li>
+          </ul>
+
+          <div class="location-card__actions">
+            <a
+              href="https://www.google.com/maps/search/?api=1&query=Colon+696+Parana+Entre+Rios"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn--primary"
+            >
+              Abrir en Google Maps
+            </a>
+            <a
+              href="https://www.instagram.com/buenardaparana/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn--ghost"
+            >
+              Seguir en Instagram
+            </a>
+          </div>
+        </div>
+
+        <!-- Mapa visual estilizado de Colón 696, Paraná -->
+        <div class="map-art" aria-label="Mapa ilustrado de Colón 696, Paraná">
+          <svg viewBox="0 0 500 380" class="map-art__svg" role="img" aria-label="Ubicación Colón 696 Paraná">
+            <rect width="500" height="380" fill="#121212" />
+            <!-- Cuadrícula urbana de Paraná -->
+            <g stroke="#222222" stroke-width="14">
+              <line x1="0" y1="75" x2="500" y2="75" />
+              <line x1="0" y1="190" x2="500" y2="190" stroke="#2D2D2D" stroke-width="20" />
+              <line x1="0" y1="305" x2="500" y2="305" />
+              <line x1="115" y1="0" x2="115" y2="380" />
+              <line x1="255" y1="0" x2="255" y2="380" stroke="#2D2D2D" stroke-width="20" />
+              <line x1="395" y1="0" x2="395" y2="380" />
+            </g>
+            <!-- Nombres de calles -->
+            <text x="24" y="184" fill="#8A8A8A" font-size="11" font-weight="700" letter-spacing="2">AV. COLÓN</text>
+            <text x="268" y="42" fill="#6E6E6E" font-size="10" font-weight="700" letter-spacing="1.5">LA RIOJA</text>
+            <text x="36" y="300" fill="#6E6E6E" font-size="10" font-weight="700" letter-spacing="1.5">SAN JUAN</text>
+
+            <!-- Pulso y Pin en Colón 696 -->
+            <circle cx="255" cy="190" r="46" fill="rgba(245, 183, 0, 0.12)" />
+            <circle cx="255" cy="190" r="24" fill="rgba(245, 183, 0, 0.25)" />
+            <path d="M255 142 C237 142 223 156 223 174 C223 197 255 224 255 224 C255 224 287 197 287 174 C287 156 273 142 255 142 Z" fill="#F5B700" />
+            <circle cx="255" cy="173" r="11" fill="#0D0D0D" />
+
+            <!-- Tarjeta flotante en el mapa -->
+            <rect x="135" y="242" width="240" height="68" rx="12" fill="#0D0D0D" stroke="#F5B700" stroke-width="1.5" />
+            <text x="255" y="269" text-anchor="middle" fill="#F5B700" font-family="Bebas Neue, sans-serif" font-size="22" letter-spacing="1.5">BUENARDA · COLÓN 696</text>
+            <text x="255" y="291" text-anchor="middle" fill="#D4D4D4" font-size="12" font-weight="600">Paraná, Entre Ríos · Mié a Dom</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <span class="brand__title">BUENARDA</span>
+        <span class="footer__tagline">Hamburguesas de alta calidad | 100% Carne · Colón 696, Paraná</span>
+      </div>
+      <div class="footer__links">
+        <a href="#carta">Carta</a>
+        <a href="#calidad">Calidad</a>
+        <a href="#ubicacion">Ubicación</a>
+        <a href="https://www.instagram.com/buenardaparana/" target="_blank" rel="noopener noreferrer">Instagram</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Overlay y Drawer Lateral del Carrito -->
+  <div class="cart-overlay" id="cartOverlay" hidden></div>
+  <aside class="cart-drawer" id="cartDrawer" aria-label="Carrito de compras" aria-hidden="true">
+    <div class="cart-drawer__header">
+      <div>
+        <h2 class="cart-drawer__title">TU PEDIDO</h2>
+        <p class="cart-drawer__subtitle">Armá tu combo y envialo por WhatsApp</p>
+      </div>
+      <button type="button" class="cart-drawer__close" id="closeCartBtn" aria-label="Cerrar carrito">✕</button>
+    </div>
+
+    <div class="cart-drawer__body" id="cartItemsContainer"></div>
+
+    <div class="cart-drawer__footer" id="cartFooter">
+      <div class="order-form">
+        <div class="delivery-toggle" role="group" aria-label="Modalidad de entrega">
+          <button type="button" class="delivery-btn is-active" data-delivery="retiro">🏪 Retiro Colón 696</button>
+          <button type="button" class="delivery-btn" data-delivery="delivery">🛵 Delivery Paraná</button>
+        </div>
+
+        <input type="text" id="customerName" class="form-input" placeholder="Tu nombre" />
+        <input type="text" id="customerAddress" class="form-input" placeholder="Dirección en Paraná (ej. Urquiza 1150)" hidden />
+
+        <select id="paymentMethod" class="form-input" aria-label="Medio de pago">
+          <option value="Efectivo">💵 Efectivo</option>
+          <option value="Transferencia / Mercado Pago">📲 Transferencia / Mercado Pago</option>
+          <option value="Tarjeta de Débito / Crédito">💳 Tarjeta de Débito / Crédito</option>
+        </select>
+
+        <input type="text" id="orderNotes" class="form-input" placeholder="Notas (ej. sin pepinillos, punto de carne...)" />
+      </div>
+
+      <div class="cart-totals">
+        <div class="cart-totals__row">
+          <span>Subtotal</span>
+          <strong id="cartSubtotal">$0</strong>
+        </div>
+        <div class="cart-totals__row cart-totals__row--total">
+          <span>Total Estimado</span>
+          <strong id="cartTotal">$0</strong>
+        </div>
+      </div>
+
+      <div class="cart-actions">
+        <button type="button" class="btn btn--whatsapp btn--full" id="sendWhatsappBtn">
+          Enviar Pedido por WhatsApp
+        </button>
+        <button type="button" class="btn btn--ghost btn--full btn--sm" id="copyOrderBtn">
+          Copiar detalle del pedido
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Notificación Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
