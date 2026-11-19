@@ -676,3 +676,223 @@
     display: none;
   }
 }
+
+/* ==========================================================================
+   PROMOS EN EFECTIVO · AVISO DE ENVÍOS · LIGHTBOX
+   ========================================================================== */
+.wow-promos {
+  margin: 0 0 2.2rem;
+  padding: clamp(1.1rem, 3vw, 1.8rem);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(70% 90% at 0% 0%, rgba(61, 220, 132, 0.07), transparent 70%),
+    linear-gradient(180deg, rgba(25, 25, 25, 0.95), rgba(16, 16, 16, 0.95));
+}
+.wow-promos__head {
+  text-align: center;
+  margin-bottom: 1.3rem;
+}
+.wow-promos__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.4vw, 3rem);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  margin: 0.2rem 0 0.4rem;
+}
+.wow-promos__sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.wow-promos__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 1rem;
+}
+.wow-promo {
+  display: flex;
+  gap: 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  transition: border-color 0.2s, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s;
+}
+.wow-promo:hover {
+  border-color: rgba(245, 183, 0, 0.55);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+}
+.wow-promo__thumb {
+  flex: none;
+  width: 104px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  cursor: zoom-in;
+  align-self: flex-start;
+  box-shadow: 0 0 0 1px rgba(245, 183, 0, 0.35);
+}
+.wow-promo__thumb img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.wow-promo__thumb:focus-visible,
+.wow-lightbox__x:focus-visible {
+  outline: 2px solid var(--cheddar);
+  outline-offset: 2px;
+}
+.wow-promo__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+}
+.wow-promo__tag {
+  align-self: flex-start;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(61, 220, 132, 0.55);
+  background: rgba(61, 220, 132, 0.1);
+  color: #5dffa3;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+.wow-promo__tag.is-cash {
+  border-color: rgba(245, 183, 0, 0.6);
+  background: var(--cheddar-soft);
+  color: var(--cheddar);
+}
+.wow-promo__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.02;
+  letter-spacing: 0.03em;
+}
+.wow-promo__desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.wow-promo__opts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.4rem;
+}
+.wow-promo__opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.wow-promo__label {
+  flex: 1 1 100%;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-main);
+}
+.wow-promo__price {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  letter-spacing: 0.04em;
+  color: var(--cheddar);
+  line-height: 1;
+}
+.wow-promo__add {
+  margin-left: auto;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.82rem;
+}
+@media (max-width: 420px) {
+  .wow-promo__thumb {
+    width: 88px;
+  }
+}
+
+.wow-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(6px);
+  cursor: zoom-out;
+  animation: wowIn 0.25s ease both;
+}
+.wow-lightbox img {
+  max-width: min(94vw, 560px);
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(245, 183, 0, 0.4);
+}
+.wow-lightbox__x {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: rgba(20, 20, 20, 0.9);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* Aviso de envíos en el carrito */
+.wow-ship {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin: 0.2rem 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(245, 183, 0, 0.4);
+  border-radius: var(--radius-md);
+  background: var(--cheddar-soft);
+  color: var(--text-main);
+}
+.wow-ship__ico {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+.wow-ship p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.wow-ship strong {
+  color: var(--cheddar);
+}
+.wow-ship em {
+  font-style: normal;
+  color: var(--text-muted);
+}
+.wow-pay-warn {
+  margin: 0.1rem 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid rgba(229, 72, 77, 0.55);
+  border-radius: var(--radius-md);
+  background: rgba(229, 72, 77, 0.1);
+  color: #ffb4b6;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.wow-pay-warn[hidden] {
+  display: none;
+}

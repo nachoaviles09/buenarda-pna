@@ -742,6 +742,37 @@ document.addEventListener('DOMContentLoaded', () => {
     openCart();
   };
 
+  // [AGREGADO] Puente para las promos extra de wow.js (no altera nada del flujo existente)
+  window.BuenardaCart = {
+    addCustom(id, name, unitPrice, note, sourceBtn) {
+      const existing = state.cart.find((c) => c.id === id);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        state.cart.push({
+          uid: 'custom-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+          id,
+          name,
+          isBurger: false,
+          size: 'promo',
+          unitPrice: Number(unitPrice) || 0,
+          qty: 1,
+          person: '',
+          note: note || '',
+        });
+      }
+      saveCart();
+      renderCart();
+      pulseCartBadge();
+      flashAddedButton(sourceBtn);
+      showToast('Agregado: ' + name);
+      openCart();
+    },
+    ids() {
+      return state.cart.map((c) => c.id);
+    },
+  };
+
   const getShippingCost = () => {
     if (state.deliveryMode !== 'delivery') return 0;
     if (deliveryZones.length > 0) {

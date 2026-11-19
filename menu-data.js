@@ -79,7 +79,7 @@ const SITE = {
 
   // Fotos reales de las burgers: poner true (o "si" en Config) y subir fotos a assets/burgers/<id>.jpg
   // Si además subís assets/burgers/<id>-corte.jpg, al pasar el cursor o mantener presionado muestra el corte.
-  usePhotos: false,
+  usePhotos: true,
   photoExtension: 'jpg',
 
   // Productos sugeridos en el carrito ("Sumá papas y bebida")
@@ -109,7 +109,7 @@ const MENU_ITEMS = [
     category: 'clasicas',
     badge: 'Top Ventas',
     isBurger: true,
-    basePrice: 11800,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR AMERICANO X4, PEPINILLOS, CEBOLLA FRESCA BRUNOISE, SALSA THOUSAND ISLAND.',
     layers: {
@@ -125,7 +125,7 @@ const MENU_ITEMS = [
     category: 'bacon',
     badge: 'Bomba',
     isBurger: true,
-    basePrice: 12900,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, BACON AHUMADO, HUEVO FRITO, SALSA BARBACOA.',
     layers: {
@@ -141,7 +141,7 @@ const MENU_ITEMS = [
     category: 'bacon',
     badge: 'Cheddar Ahumado',
     isBurger: true,
-    basePrice: 12900,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR AHUMADO X4, BACON AHUMADO, CEBOLLA CARAMEL, SALSA BARBACOA.',
     layers: {
@@ -157,7 +157,7 @@ const MENU_ITEMS = [
     category: 'especiales',
     badge: 'Crocante',
     isBurger: true,
-    basePrice: 12200,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, CEBOLLA CRISPY, SALSA BARBACOA.',
     layers: {
@@ -172,7 +172,7 @@ const MENU_ITEMS = [
     category: 'especiales',
     badge: 'Con Provolone',
     isBurger: true,
-    basePrice: 12800,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO PROVOLONE X4, LECHUGA, TOMATE, CEBOLLA, HUEVO FRITO, SALSA THOUSAND ISLAND.',
     layers: {
@@ -190,7 +190,7 @@ const MENU_ITEMS = [
     category: 'bacon',
     badge: 'Salsa Alioli',
     isBurger: true,
-    basePrice: 12900,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR SMOKED X4, BACON AHUMADO, CEBOLLA CRISPY, SALSA ALIOLI.',
     layers: {
@@ -206,7 +206,7 @@ const MENU_ITEMS = [
     category: 'bacon',
     badge: 'Salsa Buenarda',
     isBurger: true,
-    basePrice: 12500,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, BACON AHUMADO, SALSA BUENARDA.',
     layers: {
@@ -221,7 +221,7 @@ const MENU_ITEMS = [
     category: 'clasicas',
     badge: 'Clásica',
     isBurger: true,
-    basePrice: 10900,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, SALSA ROYALE (CEBOLLA FRESCA EN DADOS CON KETCHUP).',
     layers: {

@@ -117,13 +117,16 @@
       var id = card.getAttribute('data-card-id');
       if (!id) return;
       var svg = $('.burger-svg', card);
+      var ph = $('.item-photo:not(.item-photo--cut)', card);
+      var svgStr = svg ? svg.outerHTML : (ph && ph.dataset && ph.dataset.fallback ? ph.dataset.fallback : '');
       if (!cache[id]) cacheSize++;
       cache[id] = {
         id: id,
         name: txt('.burger-card__title', card),
         ingredients: txt('.burger-card__ingredients', card),
         price: txt('.burger-card__price', card),
-        svg: svg ? svg.outerHTML : '',
+        photo: ph ? ph.getAttribute('src') : '',
+        svg: svgStr,
         soldOut: card.classList.contains('is-sold-out'),
         isBurger: !!$('.smash-burst', card)
       };
@@ -634,7 +637,7 @@
     ctx.closePath();
   }
 
-  function drawCard(r, img) {
+  function drawCard(r, img, isPhoto) {
     var W = 1080, H = 1920;
     var cv = document.createElement('canvas');
     cv.width = W; cv.height = H;
@@ -680,7 +683,20 @@
     c.fillText('MI MATCH ES', W / 2, 520);
 
     // burger
-    if (img) {
+    if (img && isPhoto) {
+      var bw = 880, bh = 600, bx = (W - bw) / 2, by = 560;
+      var sc = Math.max(bw / img.naturalWidth, bh / img.naturalHeight);
+      var sw = bw / sc, sh = bh / sc;
+      c.save();
+      c.shadowColor = 'rgba(245,183,0,0.5)'; c.shadowBlur = 70;
+      rr(c, bx, by, bw, bh, 36); c.fillStyle = '#000'; c.fill();
+      c.restore();
+      c.save();
+      rr(c, bx, by, bw, bh, 36); c.clip();
+      c.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, bx, by, bw, bh);
+      c.restore();
+      c.save(); c.strokeStyle = 'rgba(245,183,0,0.8)'; c.lineWidth = 4; rr(c, bx, by, bw, bh, 36); c.stroke(); c.restore();
+    } else if (img) {
       c.save();
       c.shadowColor = 'rgba(245,183,0,0.55)'; c.shadowBlur = 80;
       c.drawImage(img, W / 2 - 400, 560, 800, 585);
@@ -724,23 +740,39 @@
     return cv;
   }
 
+  function loadPhoto(src) {
+    return new Promise(function (res) {
+      if (!src) return res(null);
+      var img = new Image();
+      img.onload = function () { res(img); };
+      img.onerror = function () { res(null); };
+      img.src = src;
+    });
+  }
+  function toBlobSafe(cv) {
+    return new Promise(function (res) {
+      try { cv.toBlob(function (b) { res(b || null); }, 'image/png'); } catch (e) { res(null); }
+    });
+  }
   function makeCard(r) {
     var box = $('#labCard');
     var fontP = (document.fonts && document.fonts.load)
       ? Promise.all([document.fonts.load("200px 'Bebas Neue'"), document.fonts.load("700 40px 'Plus Jakarta Sans'")]).catch(function () {})
       : Promise.resolve();
-    Promise.all([loadSvgImage(r.item.svg), fontP]).then(function (v) {
-      var cv = drawCard(r, v[0]);
-      cv.toBlob(function (blob) {
-        if (!blob || lab.result !== r) return;
-        releaseShare();
-        lab.shareBlob = blob;
-        lab.shareUrl = URL.createObjectURL(blob);
-        var holder = $('#labCard');
-        if (!holder) return;
-        holder.classList.remove('wow-card--loading');
-        holder.innerHTML = '<img alt="Tarjeta: mi burger en Buenarda es ' + esc(r.item.name) + '" src="' + lab.shareUrl + '">';
-      }, 'image/png');
+    var photoSrc = r.item.photo || ('assets/burgers/' + r.item.id + '.jpg');
+    Promise.all([loadPhoto(photoSrc), loadSvgImage(r.item.svg), fontP]).then(function (v) {
+      var photo = v[0], svgImg = v[1];
+      var first = photo ? toBlobSafe(drawCard(r, photo, true)) : Promise.resolve(null);
+      return first.then(function (b) { return b || toBlobSafe(drawCard(r, svgImg, false)); });
+    }).then(function (blob) {
+      if (!blob || lab.result !== r) { if (box) box.classList.remove('wow-card--loading'); return; }
+      releaseShare();
+      lab.shareBlob = blob;
+      lab.shareUrl = URL.createObjectURL(blob);
+      var holder = $('#labCard');
+      if (!holder) return;
+      holder.classList.remove('wow-card--loading');
+      holder.innerHTML = '<img alt="Tarjeta: mi burger en Buenarda es ' + esc(r.item.name) + '" src="' + lab.shareUrl + '">';
     }).catch(function (e) {
       if (box) box.classList.remove('wow-card--loading');
       if (window.console) console.warn('[wow] tarjeta', e);
@@ -776,6 +808,136 @@
   }
 
   /* ------------------------------------------------------------------ *
+   *  7) Promos en efectivo (se suman al carrito existente)
+   * ------------------------------------------------------------------ */
+  var CASH_ONLY = ['promo-ef-x2-cheese', 'promo-ef-triple'];
+  var CASH_TRANSF = ['promo-ef-combo-x4', 'promo-ef-x2-bacon', 'promo-ef-x2-crispy'];
+  var PAY_CASH = 'Pago: solo contado efectivo';
+  var PAY_CT = 'Pago: contado efectivo / transferencia';
+  var CASH_PROMOS = [
+    { img: 'assets/promos/promo-combo-x4.jpg', tag: 'EFECTIVO / TRANSFERENCIA', title: 'COMBO BACON CHEESE BURGER',
+      sub: 'Incluyen papas fritas.', alt: 'Flyer: combo de 4 Bacon Cheese Burger con papas fritas, $52.000',
+      opts: [{ id: 'promo-ef-combo-x4', label: 'Combo x4', price: 52000, name: 'COMBO x4 BACON CHEESE BURGER + PAPAS', note: PAY_CT }] },
+    { img: 'assets/promos/promo-x2-bacon-crispy.jpg', tag: 'EFECTIVO / TRANSFERENCIA', title: 'X2 BACON CHEESE · X2 CRISPY BACON',
+      sub: 'Incluyen papas fritas.', alt: 'Flyer: X2 Bacon Cheese $28.000 y X2 Crispy Bacon $30.000, incluyen papas fritas',
+      opts: [
+        { id: 'promo-ef-x2-bacon', label: 'X2 Bacon Cheese', price: 28000, name: 'PROMO X2 BACON CHEESE + PAPAS', note: PAY_CT },
+        { id: 'promo-ef-x2-crispy', label: 'X2 Crispy Bacon', price: 30000, name: 'PROMO X2 CRISPY BACON + PAPAS', note: PAY_CT }
+      ] },
+    { img: 'assets/promos/promo-x2-cheese.jpg', tag: 'SOLO EFECTIVO', title: 'X2 CHEESE BURGER',
+      sub: 'Incluyen papas fritas. Contado efectivo.', alt: 'Flyer: X2 Cheese Burger con papas fritas, $25.000, contado efectivo',
+      opts: [{ id: 'promo-ef-x2-cheese', label: 'X2 Cheese Burger', price: 25000, name: 'PROMO X2 CHEESE BURGER + PAPAS', note: PAY_CASH }] },
+    { img: 'assets/promos/promo-triple-bacon.jpg', tag: 'SOLO EFECTIVO', title: 'TRIPLE BACON CHEESE',
+      sub: 'Bacon Cheese Burger triple. Contado efectivo.', alt: 'Flyer: Triple Bacon Cheese, $15.000, contado efectivo',
+      opts: [{ id: 'promo-ef-triple', label: 'Triple Bacon Cheese', price: 15000, name: 'TRIPLE BACON CHEESE', note: PAY_CASH }] }
+  ];
+
+  function buildCashPromos() {
+    var anchor = $('#nightPromoCard');
+    if (!anchor || !anchor.parentNode || $('#promosEfectivo')) return;
+    var sec = document.createElement('section');
+    sec.className = 'wow-promos';
+    sec.id = 'promosEfectivo';
+    sec.setAttribute('aria-labelledby', 'promosEfTitle');
+    sec.innerHTML =
+      '<div class="wow-promos__head"><span class="section-eyebrow">💵 PRECIOS ESPECIALES</span>' +
+      '<h3 class="wow-promos__title" id="promosEfTitle">PROMOS <span class="text-cheddar">EN EFECTIVO</span></h3>' +
+      '<p class="wow-promos__sub">Válidas con el medio de pago que indica cada promo.</p></div>' +
+      '<div class="wow-promos__grid">' +
+      CASH_PROMOS.map(function (p, pi) {
+        return '<article class="wow-promo">' +
+          '<button type="button" class="wow-promo__thumb" data-wow-zoom="' + pi + '" aria-label="Ver flyer de ' + esc(p.title) + ' en grande">' +
+          '<img src="' + p.img + '" alt="' + esc(p.alt) + '" loading="lazy"></button>' +
+          '<div class="wow-promo__body">' +
+          '<span class="wow-promo__tag' + (p.tag === 'SOLO EFECTIVO' ? ' is-cash' : '') + '">💵 ' + p.tag + '</span>' +
+          '<h4 class="wow-promo__name">' + esc(p.title) + '</h4>' +
+          '<p class="wow-promo__desc">' + esc(p.sub) + '</p>' +
+          '<div class="wow-promo__opts">' +
+          p.opts.map(function (o, oi) {
+            return '<div class="wow-promo__opt"><span class="wow-promo__label">' + esc(o.label) + '</span>' +
+              '<strong class="wow-promo__price">' + money(o.price) + '</strong>' +
+              '<button type="button" class="btn btn--primary wow-promo__add" data-wow-promo="' + pi + ':' + oi + '">+ Agregar</button></div>';
+          }).join('') + '</div></div></article>';
+      }).join('') + '</div>';
+    anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+    $$('.wow-promo', sec).forEach(reveal);
+    reveal($('.wow-promos__head', sec));
+
+    sec.addEventListener('click', function (e) {
+      var z = e.target.closest('[data-wow-zoom]');
+      if (z) { openLightbox(CASH_PROMOS[+z.getAttribute('data-wow-zoom')]); return; }
+      var b = e.target.closest('[data-wow-promo]');
+      if (!b) return;
+      var ij = b.getAttribute('data-wow-promo').split(':');
+      var o = CASH_PROMOS[+ij[0]].opts[+ij[1]];
+      if (window.BuenardaCart && window.BuenardaCart.addCustom) {
+        window.BuenardaCart.addCustom(o.id, o.name, o.price, o.note, b);
+        var r = b.getBoundingClientRect();
+        burst(r.left + r.width / 2, r.top + r.height / 2);
+        sizzle(); buzz(18);
+      } else {
+        var t = $('#toast');
+        if (t) { t.textContent = 'Pedí esta promo por WhatsApp o Instagram'; t.classList.add('is-visible'); setTimeout(function () { t.classList.remove('is-visible'); }, 2600); }
+      }
+    });
+  }
+
+  var lightbox = null;
+  function openLightbox(p) {
+    closeLightbox();
+    lightbox = document.createElement('div');
+    lightbox.className = 'wow-lightbox';
+    lightbox.setAttribute('role', 'dialog');
+    lightbox.setAttribute('aria-modal', 'true');
+    lightbox.setAttribute('aria-label', p.title);
+    lightbox.innerHTML = '<button type="button" class="wow-lightbox__x" aria-label="Cerrar">✕</button><img src="' + p.img + '" alt="' + esc(p.alt) + '">';
+    lightbox.addEventListener('click', closeLightbox);
+    document.body.appendChild(lightbox);
+    var x = $('.wow-lightbox__x', lightbox); if (x) x.focus();
+  }
+  function closeLightbox() { if (lightbox) { lightbox.remove(); lightbox = null; } }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeLightbox(); });
+
+  /* ------------------------------------------------------------------ *
+   *  8) Aviso de ENVÍOS + control de medio de pago en el carrito
+   * ------------------------------------------------------------------ */
+  function cartNotes() {
+    var toggle = $('.delivery-toggle');
+    if (toggle && !$('.wow-ship')) {
+      var d = document.createElement('div');
+      d.className = 'wow-ship';
+      d.setAttribute('role', 'note');
+      d.innerHTML = '<span class="wow-ship__ico" aria-hidden="true">🛵</span><p><strong>ENVÍOS:</strong> Enviar ubicación, y <strong>ACLARAR</strong> si abona Justo o enviamos cambio, de lo contrario el importe se redondeará a favor del repartidor. <em>¡Muchas gracias por comprender!</em></p>';
+      toggle.parentNode.insertBefore(d, toggle.nextSibling);
+    }
+    var pay = $('#paymentMethod');
+    if (pay && !$('.wow-pay-warn')) {
+      var w = document.createElement('div');
+      w.className = 'wow-pay-warn';
+      w.setAttribute('role', 'alert');
+      w.hidden = true;
+      pay.parentNode.insertBefore(w, pay.nextSibling);
+      var check = function () {
+        var ids = (window.BuenardaCart && window.BuenardaCart.ids) ? window.BuenardaCart.ids() : [];
+        var hasCash = ids.some(function (i) { return CASH_ONLY.indexOf(i) > -1; });
+        var hasCT = ids.some(function (i) { return CASH_TRANSF.indexOf(i) > -1; });
+        var v = pay.value || '';
+        var isCash = /^Efectivo/i.test(v), isTransf = /Transferencia/i.test(v);
+        var msg = '';
+        if (hasCash && !isCash) msg = '⚠️ Tu pedido tiene promos válidas solo con pago en efectivo. Elegí “Efectivo” o quitá esas promos.';
+        else if (hasCT && !isCash && !isTransf) msg = '⚠️ Las promos de tu pedido valen con efectivo o transferencia, no con tarjeta.';
+        w.textContent = msg;
+        w.hidden = !msg;
+      };
+      pay.addEventListener('change', check);
+      var cont = $('#cartItemsContainer');
+      if (cont && 'MutationObserver' in window) new MutationObserver(check).observe(cont, { childList: true });
+      check();
+    }
+  }
+
+
+  /* ------------------------------------------------------------------ *
    *  Arranque
    * ------------------------------------------------------------------ */
   function init() {
@@ -794,6 +956,8 @@
     safe(tilt);
     safe(addFeedback);
     safe(progress);
+    safe(buildCashPromos);
+    safe(cartNotes);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
