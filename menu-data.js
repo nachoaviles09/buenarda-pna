@@ -3,12 +3,11 @@
 /**
  * BUENARDA (@buenardaparana) — DATOS EDITABLES Y PLANTILLA AUTOGESTIONABLE
  * ----------------------------------------------------------------------------
- * Todo se puede actualizar en vivo desde Google Sheets (pestañas Config, Carta y Envios).
- * Si la planilla no tiene conexión o una pestaña está vacía, se usan estos valores de respaldo.
+ * Actualizado con precios reales, descripciones oficiales, promos en efectivo
+ * y políticas oficiales del local.
  */
 
 const SITE = {
-  // Identidad de marca (adaptable a cualquier local desde Google Sheets Config)
   brand: {
     name: 'BUENARDA',
     handle: '@buenardaparana',
@@ -19,31 +18,31 @@ const SITE = {
     fullAddress: 'Colón 696, E3100 Paraná, Entre Ríos',
     instagramUrl: 'https://www.instagram.com/buenardaparana/',
     mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Colon+696+Parana+Entre+Rios',
-    mapsEmbedUrl: 'https://www.google.com/maps?q=Col%C3%B3n+696,+Paran%C3%A1,+Entre+R%C3%ADos,+Argentina&output=embed',
+    mapsEmbedUrl:
+      'https://www.google.com/maps?q=Col%C3%B3n+696,+Paran%C3%A1,+Entre+R%C3%ADos,+Argentina&output=embed',
     primaryColor: '#F5B700',
   },
 
-  // 1. Conexión a Google Sheets (enlaces publicados en la web)
+  // 1. Conexión a Google Sheets (CSV publicados)
   sheet: {
     menuCsvUrl:
-      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=1624709794&single=true',
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pub?gid=1624709794&single=true&output=csv',
     configCsvUrl:
-      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=0&single=true',
-    // Opcional: si creás una pestaña "Envios" (columnas: zona, costo, activo), pegá acá su link publicado:
-    shippingCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pubhtml?gid=1023038732&single=true',
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQygwj2X-rEkanB_0y1Hor6fVbkB9x98TjBEEx0JOqv057MkwC3u3X0zjhkoY0ujQ2ZtcwG7wm6fqlo/pub?gid=0&single=true&output=csv',
+    shippingCsvUrl: '',
   },
 
   // 2. Registro automático de ventas en Google Sheets (Apps Script)
   appsScriptUrl:
     'https://script.google.com/macros/s/AKfycbypYYKhsqoLY1EnKm3BubgjJPvSL5luk_zSzAXEsyGK_f7DRAAWRiAHIdlGqSRbkAfy/exec',
 
-  // Número de WhatsApp que recibe los pedidos (código de país + área + número, sin "+" ni espacios)
+  // Número de WhatsApp que recibe los pedidos
   whatsappNumber: '5493434717233',
 
   // Recargo por pasar una burger de Doble a Triple
-  tripleExtraPrice: 2400,
+  tripleExtraPrice: 2500,
 
-  // Horarios. Días: 0=Domingo, 1=Lunes ... 6=Sábado. Horas en formato 24 hs (24 = medianoche).
+  // Horarios (0=Dom, 1=Lun ... 6=Sáb)
   timeZone: 'America/Argentina/Buenos_Aires',
   hours: {
     openDays: [3, 4, 5, 6, 0],
@@ -53,43 +52,44 @@ const SITE = {
     fullLabel: 'Miércoles a Domingo · 20:00 a 00:00 hs',
   },
 
-  // Envío fijo de respaldo (se usa solo si no hay zonas activas en DELIVERY_ZONES)
+  // Envío fijo de respaldo si no se usa DELIVERY_ZONES
   delivery: { fee: null },
 
-  // Datos de Transferencia / Mercado Pago (se muestran en 1 toque al elegir Transferencia)
+  // Regla oficial de envíos
+  shippingPolicy:
+    'ENVIOS: Enviar ubicación, y ACLARAR si abona Justo o enviamos cambio, de lo contrario el importe se redondeará a favor del repartidor. ¡Muchas gracias por comprender!',
+
+  // Política de cocina
+  noModificationsNotice: 'Las burgers salen con lo que incluyen SIN MODIFICACIONES.',
+
+  // Datos de Transferencia / Mercado Pago (solo para productos fuera de promo)
   payment: {
     alias: 'buenarda.parana.mp',
     holder: 'Buenarda Paraná',
   },
 
-  // Combo / Promo destacada de la noche (editable o desactivable desde Config en Sheets)
+  // Banner destacado arriba de la carta
   promo: {
     active: true,
-    id: 'promo-noche',
-    badge: '🔥 PROMO DE LA NOCHE',
-    title: 'COMBO BUENARDA NIGHT',
-    subtitle: '2x 7th Street Doble + 1x Papas Cheddar & Bacon',
-    price: 26900,
-    oldPrice: 30500,
+    id: 'promo-2-bacon-cheese',
+    badge: '💵 PROMO OFICIAL · SOLO EFECTIVO',
+    title: 'X2 BACON CHEESE + PAPAS FRITAS',
+    subtitle: '2x Bacon Cheese Burger Doble + Papas Fritas · Válido únicamente abonando en efectivo.',
+    price: 28000,
+    oldPrice: 30000,
     icon: '🔥',
   },
 
-  // Instagram
   instagramFollowers: { short: '+17.5K', long: '17,5 mil' },
 
-  // Fotos reales de las burgers: poner true (o "si" en Config) y subir fotos a assets/burgers/<id>.jpg
-  // Si además subís assets/burgers/<id>-corte.jpg, al pasar el cursor o mantener presionado muestra el corte.
+  // Fotos reales: poné true cuando subas las fotos recortadas a assets/burgers/<id>.jpg
   usePhotos: false,
-  photoExtension: 'jpg',
+  photoExtension: 'png',
 
-  // Productos sugeridos en el carrito ("Sumá papas y bebida")
+  // Sugerencias dentro del carrito
   upsellIds: ['papas-clasicas', 'papas-cheddar-bacon', 'gaseosa-lata'],
 };
 
-/**
- * Zonas de Delivery con tarifa automática.
- * También se pueden administrar desde la pestaña "Envios" de Google Sheets (columnas: zona | costo | activo).
- */
 const DELIVERY_ZONES = [
   { id: 'centro', name: 'Centro / Microcentro (hasta 15 cuadras)', fee: 1500 },
   { id: 'parque-costanera', name: 'Parque Urquiza / Costanera / Cinco Esquinas', fee: 1800 },
@@ -97,21 +97,86 @@ const DELIVERY_ZONES = [
   { id: 'otra-zona', name: 'Otra zona de Paraná (A confirmar por WhatsApp)', fee: null },
 ];
 
-/**
- * Reseñas REALES de clientes (si está vacío, la sección no aparece).
- */
 const REVIEWS = [];
 
 const MENU_ITEMS = [
+  // ==================== PROMOS OFICIALES (SOLO EN EFECTIVO) ====================
+  {
+    id: 'promo-2-cheese-burger',
+    name: 'PROMO X2 CHEESE BURGER + PAPAS',
+    category: 'promos',
+    badge: 'Solo Efectivo',
+    isBurger: false,
+    isPromo: true,
+    cashOnly: true,
+    basePrice: 25000,
+    ingredients:
+      '2X CHEESE BURGER DOBLE + PAPAS FRITAS. VÁLIDO ÚNICAMENTE ABONANDO EN EFECTIVO. SIN MODIFICACIONES.',
+    icon: '🔥',
+  },
+  {
+    id: 'promo-2-bacon-cheese',
+    name: 'PROMO X2 BACON CHEESE + PAPAS',
+    category: 'promos',
+    badge: 'Solo Efectivo',
+    isBurger: false,
+    isPromo: true,
+    cashOnly: true,
+    basePrice: 28000,
+    ingredients:
+      '2X BACON CHEESE BURGER DOBLE + PAPAS FRITAS. VÁLIDO ÚNICAMENTE ABONANDO EN EFECTIVO. SIN MODIFICACIONES.',
+    icon: '🔥',
+  },
+  {
+    id: 'promo-2-crispy-bacon',
+    name: 'PROMO X2 CRISPY BACON + PAPAS',
+    category: 'promos',
+    badge: 'Solo Efectivo',
+    isBurger: false,
+    isPromo: true,
+    cashOnly: true,
+    basePrice: 30000,
+    ingredients:
+      '2X CRISPY BACON DOBLE + PAPAS FRITAS. VÁLIDO ÚNICAMENTE ABONANDO EN EFECTIVO. SIN MODIFICACIONES.',
+    icon: '🔥',
+  },
+  {
+    id: 'combo-4-bacon-cheese',
+    name: 'COMBO X4 BACON CHEESE BURGER + PAPAS',
+    category: 'promos',
+    badge: 'Solo Efectivo',
+    isBurger: false,
+    isPromo: true,
+    cashOnly: true,
+    basePrice: 52000,
+    ingredients:
+      '4X BACON CHEESE BURGER DOBLE + PAPAS FRITAS. VÁLIDO ÚNICAMENTE ABONANDO EN EFECTIVO. SIN MODIFICACIONES.',
+    icon: '🍔',
+  },
+  {
+    id: 'promo-triple-bacon-cheese',
+    name: 'PROMO TRIPLE BACON CHEESE + PAPAS',
+    category: 'promos',
+    badge: 'Solo Efectivo',
+    isBurger: false,
+    isPromo: true,
+    cashOnly: true,
+    basePrice: 15000,
+    ingredients:
+      'BACON CHEESE BURGER TRIPLE + PAPAS FRITAS. VÁLIDO ÚNICAMENTE ABONANDO EN EFECTIVO. SIN MODIFICACIONES.',
+    icon: '👑',
+  },
+
+  // ==================== HAMBURGUESAS OFICIALES ($15.000) ====================
   {
     id: '7th-street',
     name: '7TH STREET',
     category: 'clasicas',
     badge: 'Top Ventas',
     isBurger: true,
-    basePrice: 11800,
+    basePrice: 15000,
     ingredients:
-      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR AMERICANO X4, PEPINILLOS, CEBOLLA FRESCA BRUNOISE, SALSA THOUSAND ISLAND.',
+      'PAN ESPECIAL BUENARDA, DOBLE MEDALLONES CARNE VACUNA, QUESO CHEDDAR AMERICANO X4, PEPINILLOS, CEBOLLA FRESCA BRUNOISE, SALSA THOUSAND ISLAND.',
     layers: {
       cheese: 'cheddar',
       pickles: true,
@@ -120,12 +185,44 @@ const MENU_ITEMS = [
     },
   },
   {
+    id: 'americana',
+    name: 'AMERICANA',
+    category: 'especiales',
+    badge: 'Con Provolone',
+    isBurger: true,
+    basePrice: 15000,
+    ingredients:
+      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO PROVOLONE X4, LECHUGA, TOMATE, HUEVO FRITO, SALSA THOUSAND ISLAND.',
+    layers: {
+      cheese: 'provolone',
+      lettuce: true,
+      tomato: true,
+      egg: true,
+      sauce: 'thousand-island',
+    },
+  },
+  {
+    id: 'bbq-crispy',
+    name: 'BBQ CRISPY',
+    category: 'especiales',
+    badge: 'Crocante',
+    isBurger: true,
+    basePrice: 15000,
+    ingredients:
+      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, CEBOLLA CRISPY, SALSA BARBACOA.',
+    layers: {
+      cheese: 'cheddar',
+      crispyOnion: true,
+      sauce: 'bbq',
+    },
+  },
+  {
     id: 'egg-bacon',
     name: 'EGG BACON',
     category: 'bacon',
     badge: 'Bomba',
     isBurger: true,
-    basePrice: 12900,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, BACON AHUMADO, HUEVO FRITO, SALSA BARBACOA.',
     layers: {
@@ -136,12 +233,43 @@ const MENU_ITEMS = [
     },
   },
   {
+    id: 'bacon-cheese-burger',
+    name: 'BACON CHEESE BURGER',
+    category: 'bacon',
+    badge: 'Salsa Buenarda',
+    isBurger: true,
+    basePrice: 15000,
+    ingredients:
+      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, BACON AHUMADO, SALSA BUENARDA.',
+    layers: {
+      cheese: 'cheddar',
+      bacon: true,
+      sauce: 'buenarda',
+    },
+  },
+  {
+    id: 'crispy-bacon',
+    name: 'CRISPY BACON',
+    category: 'bacon',
+    badge: 'Salsa Alioli',
+    isBurger: true,
+    basePrice: 15000,
+    ingredients:
+      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR SMOCKED X4, BACON AHUMADO, CEBOLLA CRISPY, SALSA ALIOLI.',
+    layers: {
+      cheese: 'smoked-cheddar',
+      bacon: true,
+      crispyOnion: true,
+      sauce: 'alioli',
+    },
+  },
+  {
     id: 'caramel-bacon',
     name: 'CARAMEL BACON',
     category: 'bacon',
     badge: 'Cheddar Ahumado',
     isBurger: true,
-    basePrice: 12900,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR AHUMADO X4, BACON AHUMADO, CEBOLLA CARAMEL, SALSA BARBACOA.',
     layers: {
@@ -152,76 +280,12 @@ const MENU_ITEMS = [
     },
   },
   {
-    id: 'bbq-crispy',
-    name: 'BBQ CRISPY',
-    category: 'especiales',
-    badge: 'Crocante',
-    isBurger: true,
-    basePrice: 12200,
-    ingredients:
-      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, CEBOLLA CRISPY, SALSA BARBACOA.',
-    layers: {
-      cheese: 'cheddar',
-      crispyOnion: true,
-      sauce: 'bbq',
-    },
-  },
-  {
-    id: 'americana',
-    name: 'AMERICANA',
-    category: 'especiales',
-    badge: 'Con Provolone',
-    isBurger: true,
-    basePrice: 12800,
-    ingredients:
-      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO PROVOLONE X4, LECHUGA, TOMATE, CEBOLLA, HUEVO FRITO, SALSA THOUSAND ISLAND.',
-    layers: {
-      cheese: 'provolone',
-      lettuce: true,
-      tomato: true,
-      dicedOnion: true,
-      egg: true,
-      sauce: 'thousand-island',
-    },
-  },
-  {
-    id: 'crispy-bacon',
-    name: 'CRISPY BACON',
-    category: 'bacon',
-    badge: 'Salsa Alioli',
-    isBurger: true,
-    basePrice: 12900,
-    ingredients:
-      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR SMOKED X4, BACON AHUMADO, CEBOLLA CRISPY, SALSA ALIOLI.',
-    layers: {
-      cheese: 'smoked-cheddar',
-      bacon: true,
-      crispyOnion: true,
-      sauce: 'alioli',
-    },
-  },
-  {
-    id: 'bacon-cheese-burger',
-    name: 'BACON CHEESE BURGER',
-    category: 'bacon',
-    badge: 'Salsa Buenarda',
-    isBurger: true,
-    basePrice: 12500,
-    ingredients:
-      'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, BACON AHUMADO, SALSA BUENARDA.',
-    layers: {
-      cheese: 'cheddar',
-      bacon: true,
-      sauce: 'buenarda',
-    },
-  },
-  {
     id: 'cheese-burger',
     name: 'CHEESE BURGER',
     category: 'clasicas',
     badge: 'Clásica',
     isBurger: true,
-    basePrice: 10900,
+    basePrice: 15000,
     ingredients:
       'PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR X4, SALSA ROYALE (CEBOLLA FRESCA EN DADOS CON KETCHUP).',
     layers: {
@@ -230,6 +294,8 @@ const MENU_ITEMS = [
       sauce: 'royale',
     },
   },
+
+  // ==================== PAPAS Y BEBIDAS ====================
   {
     id: 'papas-clasicas',
     name: 'PAPAS BUENARDA',

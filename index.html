@@ -1,643 +1,586 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BUENARDA | Hamburguesas de Alta Calidad · Paraná</title>
-  <meta name="description" content="Hamburguesas de alta calidad | 100% Carne. Abierto de miércoles a domingo en Colón 696, Paraná, Entre Ríos." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <meta name="theme-color" content="#0d0d0d" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BUENARDA | Hamburguesas de Alta Calidad · Paraná</title>
+    <meta
+      name="description"
+      content="Smash burgers 100% carne vacuna en Paraná. Pedí online con retiro en Colón 696 o delivery."
+    />
+    <meta name="theme-color" content="#0d0d0d" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Barra de navegación -->
+    <header class="navbar" id="navbar">
+      <div class="container navbar__inner">
+        <a href="#inicio" class="brand" aria-label="Inicio Buenarda">
+          <span class="brand__mark" aria-hidden="true">B</span>
+          <span class="brand__text">
+            <strong data-bind="brandName">BUENARDA</strong>
+            <small data-bind="brandHandle">@buenardaparana</small>
+          </span>
+        </a>
 
-  <!-- Vista previa al compartir (WhatsApp, Instagram, Facebook, X) -->
-  <meta property="og:type" content="website" />
-  <meta property="og:locale" content="es_AR" />
-  <meta property="og:site_name" content="BUENARDA" />
-  <meta property="og:title" content="BUENARDA | Hamburguesas de alta calidad · Paraná" />
-  <meta property="og:description" content="100% carne vacuna, doble medallón y queso x4. Colón 696, Paraná. Miércoles a domingo de 20 a 00 hs. Pedí por WhatsApp." />
-  <meta property="og:image" content="assets/og-image.jpg" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta name="twitter:card" content="summary_large_image" />
+        <nav class="nav-links" id="navLinks" aria-label="Navegación principal">
+          <a href="#inicio">Inicio</a>
+          <a href="#carta">Carta & Promos</a>
+          <a href="#calidad">100% Carne</a>
+          <a href="#recorrido">Conocé el Local</a>
+          <a href="#ubicacion">Local & Envíos</a>
+        </nav>
 
-  <!-- Íconos -->
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png" />
-  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
-  <link rel="manifest" href="site.webmanifest" />
+        <div class="navbar__actions">
+          <button type="button" class="cart-trigger" id="openCartBtn" aria-label="Abrir tu pedido">
+            <span aria-hidden="true">🛍️</span>
+            <span class="cart-trigger__label">Tu Pedido</span>
+            <span class="cart-trigger__badge" id="cartCountBadge">0</span>
+          </button>
 
-  <!-- Datos estructurados para Google -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Restaurant",
-    "name": "Buenarda",
-    "alternateName": "@buenardaparana",
-    "description": "Hamburguesas de alta calidad, 100% carne vacuna.",
-    "servesCuisine": "Hamburguesas",
-    "priceRange": "$$",
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": "Colón 696",
-      "addressLocality": "Paraná",
-      "addressRegion": "Entre Ríos",
-      "postalCode": "E3100",
-      "addressCountry": "AR"
-    },
-    "openingHoursSpecification": [
-      {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": ["Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-        "opens": "20:00",
-        "closes": "00:00"
-      }
-    ],
-    "hasMap": "https://www.google.com/maps/search/?api=1&query=Colon+696+Parana+Entre+Rios",
-    "sameAs": ["https://www.instagram.com/buenardaparana/"]
-  }
-  </script>
-
-  <!-- Activa las animaciones de entrada solo si hay JavaScript -->
-  <script>document.documentElement.classList.add('js');</script>
-
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="wow.css" /> <!-- Capa Neón + Lab (aditiva). Para quitarla, borrá esta línea y la de wow.js -->
-  <script src="menu-data.js" defer></script>
-  <script src="app.js" defer></script>
-  <script src="wow.js" defer></script>
-</head>
-<body>
-  <!-- Barra superior de estado y horarios -->
-  <div class="top-banner">
-    <div class="container top-banner__inner">
-      <span class="status-pill" id="openStatus" role="status">
-        <span class="status-dot" id="openStatusDot" aria-hidden="true"></span>
-        <span id="openStatusText">MIÉRCOLES A DOMINGO · 20:00 A 00:00 HS</span>
-      </span>
-      <span class="top-banner__location">📍 <span data-bind="shortAddress">Colón 696 — Paraná</span> · <span data-bind="hoursLabel">Mié a Dom 20:00 a 00:00 hs</span></span>
-    </div>
-  </div>
-
-  <!-- Navegación principal -->
-  <header class="navbar" id="navbar">
-    <div class="container navbar__inner">
-      <a href="#inicio" class="brand" aria-label="BUENARDA Inicio">
-        <svg class="brand__logo" viewBox="0 0 100 100" width="46" height="46" role="img" aria-label="Logo Buenarda">
-          <circle cx="50" cy="50" r="48" fill="#0D0D0D" stroke="#2A2A2A" stroke-width="2" />
-          <rect x="27" y="18" width="46" height="11" rx="4" fill="var(--cheddar)" />
-          <path d="M27 33 H57 C66 33 72 37.5 72 43.5 C72 47.5 69 50.2 64.5 51.5 C70 52.8 73.5 56 73.5 60.8 C73.5 67 67 71 57.5 71 H27 V61 H56 C60 61 62.5 59.5 62.5 57.2 C62.5 55 60 53.5 56 53.5 H27 V46.5 H55 C59 46.5 61.2 45 61.2 42.8 C61.2 40.6 59 39.2 55 39.2 H27 Z" fill="#F7F7F5" />
-          <rect x="27" y="75" width="46" height="11" rx="4" fill="var(--cheddar)" />
-        </svg>
-        <div class="brand__text">
-          <span class="brand__title" data-bind="brandName">BUENARDA</span>
-          <span class="brand__handle" data-bind="brandHandle">@buenardaparana</span>
+          <button
+            type="button"
+            class="mobile-menu-btn"
+            id="mobileMenuBtn"
+            aria-label="Abrir menú"
+            aria-expanded="false"
+            aria-controls="navLinks"
+          >
+            ☰
+          </button>
         </div>
-      </a>
-
-      <nav class="nav-links" id="navLinks" aria-label="Navegación principal">
-        <a href="#inicio" class="nav-links__item">Inicio</a>
-        <a href="#carta" class="nav-links__item">Carta Oficial</a>
-        <a href="#calidad" class="nav-links__item">100% Carne</a>
-        <a href="#local" class="nav-links__item">Conocé el Local</a>
-        <a href="#ubicacion" class="nav-links__item">Local & Horarios</a>
-      </nav>
-
-      <div class="navbar__actions">
-        <button type="button" class="btn-cart" id="openCartBtn" aria-label="Abrir carrito de pedido">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-            <path d="M3 6h18" />
-            <path d="M16 10a4 4 0 0 1-8 0" />
-          </svg>
-          <span class="btn-cart__label">Tu Pedido</span>
-          <span class="btn-cart__badge" id="cartCountBadge">0</span>
-        </button>
-
-        <button type="button" class="btn-menu-toggle" id="mobileMenuBtn" aria-label="Abrir menú" aria-expanded="false">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <main>
-    <!-- Hero Section -->
-    <section class="hero" id="inicio">
-      <div class="hero__ambient" aria-hidden="true"></div>
-      <div class="container hero__grid">
-        <div class="hero__content">
-          <div class="hero__eyebrow">
-            <span class="badge-cheddar">100% CARNE VACUNA</span>
-            <span class="badge-outline" data-bind="cityUpper">PARANÁ · ENTRE RÍOS</span>
-          </div>
-          <h1 class="hero__title">
-            HAMBURGUESAS DE <span class="text-cheddar">ALTA CALIDAD</span>
-          </h1>
-          <p class="hero__subtitle">
-            Pan especial Buenarda, doble medallón 100% carne vacuna con costra perfecta,
-            queso cheddar fundido x4 y nuestras salsas artesanales de la casa.
-          </p>
-
-          <div class="hero__cta">
-            <a href="#carta" class="btn btn--primary">Ver Carta Completa</a>
-            <a href="#ubicacion" class="btn btn--ghost">Cómo Llegar · <span data-bind="streetOnly">Colón 696</span></a>
-          </div>
-
-          <div class="hero__stats">
-            <div class="stat-item">
-              <strong class="stat-item__value" id="heroBurgersCount">8</strong>
-              <span class="stat-item__label">Burgers de Autor</span>
+    <main>
+      <!-- Portada / Hero -->
+      <section class="hero" id="inicio">
+        <div class="hero__ambient" aria-hidden="true"></div>
+        <div class="container hero__grid">
+          <div class="hero__copy reveal">
+            <div class="status-pill" role="status" aria-live="polite">
+              <span class="status-dot" id="openStatusDot"></span>
+              <span id="openStatusText">VERIFICANDO HORARIO...</span>
             </div>
-            <div class="stat-divider" aria-hidden="true"></div>
-            <div class="stat-item">
-              <strong class="stat-item__value">100%</strong>
-              <span class="stat-item__label">Carne Vacuna</span>
+
+            <h1 class="hero__title">
+              SMASH BURGERS
+              <span>DE ALTA CALIDAD</span>
+            </h1>
+
+            <p class="hero__subtitle">
+              100% carne vacuna seleccionada, doble medallón con costra crocante, queso fundido x4 y pan artesanal
+              recién horneado en <strong data-bind="brandAddress">Colón 696, Paraná</strong>.
+            </p>
+
+            <div class="hero__cta">
+              <a href="#carta" class="btn btn--primary">Ver Carta y Promos</a>
+              <a
+                href="https://www.instagram.com/buenardaparana/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn--ghost"
+                data-bind="igLink"
+              >
+                <span data-bind="igShort">+17.5K</span> en Instagram ↗
+              </a>
             </div>
-            <div class="stat-divider" aria-hidden="true"></div>
-            <div class="stat-item">
-              <strong class="stat-item__value" data-bind="igShort">+17.5K</strong>
-              <span class="stat-item__label">Comunidad IG</span>
+
+            <ul class="hero__stats" aria-label="Diferenciales">
+              <li>
+                <strong>100%</strong>
+                <span>Carne Vacuna</span>
+              </li>
+              <li>
+                <strong>X4</strong>
+                <span>Fetas de Queso</span>
+              </li>
+              <li>
+                <strong>DOBLE / TRIPLE</strong>
+                <span>A tu medida</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Vitrina interactiva de burgers -->
+          <div class="hero__showcase reveal">
+            <div class="ambient-glow" aria-hidden="true"></div>
+            <div class="showcase-card story-card">
+              <div class="story-card__glow" aria-hidden="true"></div>
+              <div class="showcase-card__header">
+                <span class="showcase-card__tag">DESTACADA DE LA CASA</span>
+                <div class="showcase-card__arrows">
+                  <button type="button" class="icon-btn" id="prevHeroBurger" aria-label="Hamburguesa anterior">←</button>
+                  <button type="button" class="icon-btn" id="nextHeroBurger" aria-label="Siguiente hamburguesa">→</button>
+                </div>
+              </div>
+
+              <div class="showcase-card__visual story-card__visual" id="heroBurgerVisual"></div>
+
+              <div class="showcase-card__body">
+                <div class="showcase-card__title-row">
+                  <h2 id="heroBurgerName">7TH STREET</h2>
+                  <span class="showcase-card__price" id="heroBurgerPrice">$15.000</span>
+                </div>
+                <p id="heroBurgerDesc"></p>
+
+                <div class="showcase-card__footer">
+                  <div class="story-dots" id="heroDots"></div>
+                  <button type="button" class="btn btn--primary btn--sm" id="addHeroBurgerBtn">
+                    + Agregar al Pedido
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </section>
 
-        <!-- Poster interactivo estilo Stories oficiales -->
-        <div class="hero__showcase">
-          <div class="story-card" id="heroShowcaseCard">
-            <div class="story-card__glow" aria-hidden="true"></div>
-            <div class="story-card__top">
-              <span class="story-card__tag">DESTACADA DE LA CARTA</span>
-              <div class="story-card__controls">
-                <button type="button" class="story-nav-btn" id="prevHeroBurger" aria-label="Hamburguesa anterior">‹</button>
-                <button type="button" class="story-nav-btn" id="nextHeroBurger" aria-label="Siguiente hamburguesa">›</button>
+      <!-- Cinta cinética urbana -->
+      <div class="marquee-bar marquee" aria-hidden="true">
+        <div class="marquee-track marquee__track" id="marqueeTrack">
+          <span>
+            SMASHED AL MOMENTO · 100% CARNE VACUNA · PROMOS EN EFECTIVO · SIN MODIFICACIONES · COLÓN 696 PARANÁ ·
+          </span>
+          <span>
+            SMASHED AL MOMENTO · 100% CARNE VACUNA · PROMOS EN EFECTIVO · SIN MODIFICACIONES · COLÓN 696 PARANÁ ·
+          </span>
+        </div>
+      </div>
+
+      <!-- Carta Oficial -->
+      <section class="section" id="carta">
+        <div class="container">
+          <!-- Banner Promo Destacada -->
+          <div class="night-promo" id="nightPromoCard" hidden>
+            <div class="night-promo__glow" aria-hidden="true"></div>
+            <div class="night-promo__content">
+              <span class="night-promo__badge" id="promoBadge">💵 PROMO OFICIAL · SOLO EFECTIVO</span>
+              <h2 class="night-promo__title" id="promoTitle">X2 BACON CHEESE + PAPAS FRITAS</h2>
+              <p class="night-promo__subtitle" id="promoText">
+                2x Bacon Cheese Burger Doble + Papas Fritas · Válido únicamente abonando en efectivo.
+              </p>
+            </div>
+            <div class="night-promo__action">
+              <div class="night-promo__prices">
+                <span class="night-promo__old" id="promoOldPrice" hidden>$30.000</span>
+                <span class="night-promo__price" id="promoPrice">$28.000</span>
               </div>
+              <button type="button" class="btn btn--primary" id="promoActionBtn">Pedir Promo</button>
+            </div>
+          </div>
+
+          <div class="section-header reveal">
+            <span class="section-eyebrow">PEDÍ DIRECTO · SIN COMISIONES</span>
+            <h2 class="section-title">CARTA OFICIAL & PROMOS</h2>
+            <p class="section-desc">
+              Todas nuestras burgers salen dobles con 4 fetas de queso y
+              <strong>tal como figuran en carta, sin modificaciones</strong>. Podés pasar cualquiera a
+              <strong>Triple</strong> con un clic.
+            </p>
+            <div class="policy-pills" aria-label="Condiciones del pedido">
+              <span class="policy-pill">🚫 Burgers sin modificaciones</span>
+              <span class="policy-pill policy-pill--cash">💵 Promos válidas solo en efectivo</span>
+            </div>
+          </div>
+
+          <div class="menu-controls reveal">
+            <div class="filter-tabs" id="filterTabs" role="tablist" aria-label="Categorías del menú">
+              <button type="button" class="filter-tab is-active" data-filter="all">Todas</button>
+              <button type="button" class="filter-tab filter-tab--promo" data-filter="promos">
+                🔥 Promos Efectivo
+              </button>
+              <button type="button" class="filter-tab" data-filter="clasicas">Clásicas</button>
+              <button type="button" class="filter-tab" data-filter="bacon">Con Bacon</button>
+              <button type="button" class="filter-tab" data-filter="especiales">Especiales</button>
+              <button type="button" class="filter-tab" data-filter="extras">Papas & Bebidas</button>
             </div>
 
-            <div class="story-card__visual" id="heroBurgerVisual"></div>
+            <label class="search-box" aria-label="Buscar en la carta">
+              <span aria-hidden="true">🔍</span>
+              <input
+                type="search"
+                id="menuSearchInput"
+                placeholder="Buscar por nombre o ingrediente (ej. promo, bacon, provolone)"
+              />
+            </label>
+          </div>
 
-            <div class="story-card__info">
-              <div class="story-card__header">
-                <h2 class="story-card__name" id="heroBurgerName">7TH STREET</h2>
-                <span class="story-card__price" id="heroBurgerPrice">$11.800</span>
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+      </section>
+
+      <!-- Pilares de calidad -->
+      <section class="section section--alt" id="calidad">
+        <div class="container">
+          <div class="section-header reveal">
+            <span class="section-eyebrow">EL SECRETO DEL SMASH</span>
+            <h2 class="section-title">POR QUÉ BUENARDA</h2>
+          </div>
+
+          <div class="pillars-grid">
+            <article class="pillar-card reveal">
+              <span class="pillar-card__icon" aria-hidden="true">🥩</span>
+              <h3>Blend 100% Vacuno</h3>
+              <p>Cortes seleccionados picados en el día con el porcentaje justo de grasa para lograr bordes crocantes.</p>
+            </article>
+
+            <article class="pillar-card reveal">
+              <span class="pillar-card__icon" aria-hidden="true">🔥</span>
+              <h3>Plancha a Alta Temperatura</h3>
+              <p>Aplastamos cada medallón al momento del pedido para caramelizar la carne y sellar todos sus jugos.</p>
+            </article>
+
+            <article class="pillar-card reveal">
+              <span class="pillar-card__icon" aria-hidden="true">🧀</span>
+              <h3>Queso Fundido x4</h3>
+              <p>Cheddar americano, cheddar ahumado o provolone fundido entre cada capa de carne caliente.</p>
+            </article>
+
+            <article class="pillar-card reveal">
+              <span class="pillar-card__icon" aria-hidden="true">🍔</span>
+              <h3>Pan Especial de Papa</h3>
+              <p>Esponjoso, tierno y tostado con manteca para sostener cada salsa sin desarmarse.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recorrido por el local -->
+      <section class="section" id="recorrido">
+        <div class="container">
+          <div class="section-header reveal">
+            <span class="section-eyebrow">POR DENTRO</span>
+            <h2 class="section-title">CONOCÉ EL LOCAL</h2>
+            <p class="section-desc">Pasá a retirar tu pedido o quedate a comer en nuestro local de Paraná.</p>
+          </div>
+
+          <div class="tour-player reveal" id="tourPlayer">
+            <video
+              id="tourVideo"
+              poster="assets/buenarda-local-poster.jpg"
+              muted
+              loop
+              playsinline
+              preload="metadata"
+            >
+              <source id="tourVideoSource" src="assets/buenarda-local.mp4" type="video/mp4" />
+            </video>
+
+            <div class="tour-error" id="tourError" hidden>
+              <p><strong>No se pudo cargar el video del local.</strong></p>
+              <p>Verificá que el archivo esté en <code>assets/buenarda-local.mp4</code> en formato MP4 (H.264).</p>
+            </div>
+
+            <button type="button" class="tour-play-overlay" id="tourPlayBtn" aria-label="Reproducir video">
+              ▶
+            </button>
+
+            <div class="tour-controls">
+              <button type="button" class="tour-btn" id="tourToggleBtn" aria-label="Pausar video">⏯</button>
+              <div
+                class="tour-progress"
+                id="tourProgress"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div class="tour-progress__fill" id="tourProgressFill"></div>
               </div>
-              <p class="story-card__desc" id="heroBurgerDesc">
-                PAN ESPECIAL BUENARDA, DOBLE MEDALLÓN CARNE VACUNA, QUESO CHEDDAR AMERICANO X4, PEPINILLOS, CEBOLLA FRESCA BRUNOISE, SALSA THOUSAND ISLAND.
-              </p>
-              <div class="story-card__dots" id="heroDots" role="tablist" aria-label="Selector de hamburguesas destacadas"></div>
-              <button type="button" class="btn btn--primary btn--full" id="addHeroBurgerBtn">
-                + Agregar al Pedido
+              <button type="button" class="tour-btn tour-btn--sound" id="tourSoundBtn" aria-pressed="false">
+                🔊 <span id="tourSoundLabel">Activar sonido</span>
               </button>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Cinta cinética urbana -->
-    <div class="marquee" aria-hidden="true">
-      <div class="marquee__track">
-        <div class="marquee__group">
-          <span>SMASHED AL MOMENTO</span><i>✦</i>
-          <span>100% CARNE VACUNA</span><i>✦</i>
-          <span>PAN ARTESANAL</span><i>✦</i>
-          <span data-bind="marqueeLocation">COLÓN 696 PARANÁ</span><i>✦</i>
-          <span>QUESO CHEDDAR X4</span><i>✦</i>
-          <span>SALSAS DE AUTOR</span><i>✦</i>
-        </div>
-        <div class="marquee__group">
-          <span>SMASHED AL MOMENTO</span><i>✦</i>
-          <span>100% CARNE VACUNA</span><i>✦</i>
-          <span>PAN ARTESANAL</span><i>✦</i>
-          <span data-bind="marqueeLocation">COLÓN 696 PARANÁ</span><i>✦</i>
-          <span>QUESO CHEDDAR X4</span><i>✦</i>
-          <span>SALSAS DE AUTOR</span><i>✦</i>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sección Carta Oficial -->
-    <section class="menu-section" id="carta">
-      <div class="container">
-        <div class="section-header reveal">
-          <span class="section-eyebrow">CARTA OFICIAL <span data-bind="brandHandleUpper">@BUENARDAPARANA</span></span>
-          <h2 class="section-title">NUESTRAS <span class="text-cheddar">BURGERS</span> & ACOMPAÑAMIENTOS</h2>
-          <p class="section-subtitle">
-            Todas nuestras hamburguesas salen en versión <strong>Doble (x4 Queso)</strong> o podés llevarlas a <strong>Triple (+1 Medallón +2 Queso)</strong>.
-          </p>
-        </div>
-
-        <!-- Banner dinámico de Combo / Promo de la Noche (se maneja desde Google Sheets Config) -->
-        <div class="night-promo reveal" id="nightPromoCard" hidden>
-          <div class="night-promo__glow" aria-hidden="true"></div>
-          <div class="night-promo__content">
-            <span class="night-promo__badge" id="nightPromoBadge">🔥 PROMO DE LA NOCHE</span>
-            <h3 class="night-promo__title" id="nightPromoTitle">COMBO BUENARDA NIGHT</h3>
-            <p class="night-promo__subtitle" id="nightPromoSubtitle">2x 7th Street Doble + Papas Cheddar & Bacon</p>
+      <!-- Reseñas -->
+      <section class="section section--alt" id="resenas" hidden>
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">COMUNIDAD BUENARDA</span>
+            <h2 class="section-title">LO QUE DICEN EN PARANÁ</h2>
           </div>
-          <div class="night-promo__action">
-            <div class="night-promo__prices">
-              <span class="night-promo__old" id="nightPromoOldPrice">$30.500</span>
-              <strong class="night-promo__price" id="nightPromoPrice">$26.900</strong>
+          <div class="reviews-grid" id="reviewsList"></div>
+        </div>
+      </section>
+
+      <!-- Ubicación, Horarios y Regla de Envíos -->
+      <section class="section section--alt" id="ubicacion">
+        <div class="container location-grid">
+          <div class="location-card reveal">
+            <span class="section-eyebrow">DÓNDE ESTAMOS</span>
+            <h2 class="section-title">LOCAL, HORARIOS & ENVÍOS</h2>
+
+            <ul class="location-list">
+              <li>
+                <strong>📍 Dirección</strong>
+                <span data-bind="brandAddress">Colón 696, Paraná, Entre Ríos</span>
+              </li>
+              <li>
+                <strong>🕒 Días y Horarios</strong>
+                <span id="hoursSummaryText">Miércoles a Domingo · 20:00 a 00:00 hs</span>
+              </li>
+              <li>
+                <strong>🛵 Envíos a Domicilio</strong>
+                <span id="shippingPolicyPublicText">
+                  ENVIOS: Enviar ubicación, y ACLARAR si abona Justo o enviamos cambio, de lo contrario el importe se
+                  redondeará a favor del repartidor. ¡Muchas gracias por comprender!
+                </span>
+              </li>
+              <li>
+                <strong>📱 Comunidad</strong>
+                <span>
+                  Más de <strong data-bind="igLong">17,5 mil</strong> seguidores en
+                  <a
+                    href="https://www.instagram.com/buenardaparana/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-bind="igLink"
+                  >
+                    <span data-bind="brandHandle">@buenardaparana</span>
+                  </a>
+                </span>
+              </li>
+            </ul>
+
+            <div class="location-actions">
+              <a
+                href="https://www.google.com/maps/search/?api=1&query=Col%C3%B3n+696+Paran%C3%A1+Entre+R%C3%ADos"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn--primary"
+                data-bind="mapsLink"
+              >
+                Abrir en Google Maps ↗
+              </a>
+              <a href="#carta" class="btn btn--ghost">Hacer Pedido Online</a>
             </div>
-            <button type="button" class="btn btn--primary" id="addPromoBtn">
-              + Agregar Combo
-            </button>
+          </div>
+
+          <div class="map-frame reveal">
+            <iframe
+              title="Ubicación de Buenarda en Colón 696, Paraná"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=-60.5345%2C-31.7375%2C-60.5225%2C-31.7295&layer=mapnik&marker=-31.7335%2C-60.5285"
+              loading="lazy"
+            ></iframe>
           </div>
         </div>
+      </section>
+    </main>
 
-        <!-- Barra de filtros y búsqueda -->
-        <div class="menu-toolbar">
-          <div class="filter-tabs" id="filterTabs" role="tablist" aria-label="Filtrar menú por categoría">
-            <button type="button" class="filter-tab is-active" data-filter="all">Todas</button>
-            <button type="button" class="filter-tab" data-filter="clasicas">Clásicas</button>
-            <button type="button" class="filter-tab" data-filter="bacon">Con Bacon</button>
-            <button type="button" class="filter-tab" data-filter="especiales">Especiales</button>
-            <button type="button" class="filter-tab" data-filter="extras">Papas & Bebidas</button>
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div>
+          <strong data-bind="brandName">BUENARDA</strong> · <span data-bind="brandAddress">Colón 696, Paraná</span>
+        </div>
+        <div>Pedidos directos por WhatsApp · Sin intermediarios</div>
+      </div>
+    </footer>
+
+    <!-- Barra flotante móvil cuando hay productos en el carrito -->
+    <button type="button" class="mobile-cart-bar" id="mobileCartBar" hidden>
+      <span>🛍️ Ver Pedido (<strong id="mobileCartCount">0 productos</strong>)</span>
+      <strong id="mobileCartTotal">$0</strong>
+    </button>
+
+    <!-- Drawer lateral del carrito -->
+    <div class="cart-overlay" id="cartOverlay" hidden></div>
+    <aside
+      class="cart-drawer"
+      id="cartDrawer"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Tu pedido"
+      aria-hidden="true"
+      inert
+    >
+      <div class="cart-drawer__header">
+        <div>
+          <h2>TU PEDIDO</h2>
+          <small>Las burgers salen con lo que incluyen · Sin modificaciones</small>
+        </div>
+        <button type="button" class="icon-btn" id="closeCartBtn" aria-label="Cerrar carrito">✕</button>
+      </div>
+
+      <div class="cart-notice" id="cartOpenNotice" hidden></div>
+
+      <div class="cart-drawer__body" id="cartItemsContainer"></div>
+
+      <div class="cart-drawer__footer">
+        <div class="delivery-toggle" role="group" aria-label="Modalidad de entrega">
+          <button type="button" class="delivery-btn is-active" data-delivery="retiro" aria-pressed="true">
+            🏪 Retiro en Local
+          </button>
+          <button type="button" class="delivery-btn" data-delivery="delivery" aria-pressed="false">
+            🛵 Delivery
+          </button>
+        </div>
+
+        <div class="checkout-fields">
+          <input type="text" id="customerName" placeholder="Tu nombre *" autocomplete="name" />
+
+          <!-- Regla oficial de envíos al seleccionar Delivery -->
+          <div class="shipping-rule-box" id="shippingRuleBox" hidden>
+            <strong>🛵 IMPORTANTE PARA ENVÍOS:</strong>
+            <p id="shippingRuleCartText">
+              Enviar ubicación por WhatsApp y ACLARAR si abona Justo o enviamos cambio, de lo contrario el importe se
+              redondeará a favor del repartidor. ¡Muchas gracias por comprender!
+            </p>
           </div>
 
-          <div class="search-box">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
+          <div id="deliveryZoneWrap" hidden>
+            <select id="deliveryZoneSelect" aria-label="Zona de envío"></select>
+          </div>
+
+          <input
+            type="text"
+            id="customerAddress"
+            placeholder="Dirección de entrega (calle, número y entre calles) *"
+            autocomplete="street-address"
+            hidden
+          />
+
+          <!-- Aviso automático cuando el carrito contiene Promos (Solo Efectivo) -->
+          <div class="promo-cash-notice" id="promoCashNotice" hidden>
+            💵 <strong>Promo Oficial en el carrito:</strong> las promos son válidas únicamente abonando en
+            <strong>efectivo</strong>.
+          </div>
+
+          <select id="paymentMethod" aria-label="Medio de pago">
+            <option value="Efectivo">💵 Pago en Efectivo</option>
+            <option value="Transferencia">📲 Transferencia Bancaria</option>
+            <option value="Mercado Pago">💳 Mercado Pago / QR</option>
+          </select>
+
+          <!-- Selector Pago Justo / Cambio cuando abona en Efectivo -->
+          <div class="cash-change-box" id="cashChangeBox">
+            <select id="cashChangeType" aria-label="¿Abonás justo o necesitás cambio?">
+              <option value="justo">💵 Abono Justo</option>
+              <option value="cambio">🪙 Necesito Cambio (aclarar con cuánto)</option>
+            </select>
             <input
-              type="search"
-              id="menuSearchInput"
-              class="search-box__input"
-              placeholder="Buscar por ingrediente (ej. bacon, provolone, alioli...)"
-              aria-label="Buscar hamburguesa o ingrediente"
+              type="text"
+              id="cashPayAmount"
+              placeholder="¿Con cuánto abonás? (ej. $20.000 o $50.000) *"
+              hidden
             />
           </div>
-        </div>
 
-        <!-- Grilla dinámica de productos -->
-        <div class="menu-grid" id="menuGrid">
-          <noscript>
-            <p class="menu-empty">Activá JavaScript para ver la carta, o escribinos por Instagram: <a href="https://www.instagram.com/buenardaparana/">@buenardaparana</a>.</p>
-          </noscript>
-        </div>
-      </div>
-    </section>
-
-    <!-- Pilares de Calidad -->
-    <section class="quality-section" id="calidad">
-      <div class="container">
-        <div class="section-header reveal">
-          <span class="section-eyebrow">EL SELLO <span data-bind="brandName">BUENARDA</span></span>
-          <h2 class="section-title">POR QUÉ SON <span class="text-cheddar">BUENARDAS</span></h2>
-        </div>
-
-        <div class="pillars-grid">
-          <article class="pillar-card reveal">
-            <div class="pillar-card__icon">🥩</div>
-            <h3 class="pillar-card__title">100% Carne Vacuna</h3>
-            <p class="pillar-card__text">
-              Blend seleccionado preparado en el día y sellado a la plancha para lograr una costra jugosa llena de sabor.
-            </p>
-          </article>
-
-          <article class="pillar-card reveal">
-            <div class="pillar-card__icon">🍔</div>
-            <h3 class="pillar-card__title">Pan Especial Buenarda</h3>
-            <p class="pillar-card__text">
-              Esponjoso, tierno y levemente tostado con manteca para contener cada medallón y salsa sin desarmarse.
-            </p>
-          </article>
-
-          <article class="pillar-card reveal">
-            <div class="pillar-card__icon">🧀</div>
-            <h3 class="pillar-card__title">Quesos x4 Fundidos</h3>
-            <p class="pillar-card__text">
-              Cheddar americano, cheddar ahumado o provolone fundidos entre capa y capa de carne caliente.
-            </p>
-          </article>
-
-          <article class="pillar-card reveal">
-            <div class="pillar-card__icon">🥣</div>
-            <h3 class="pillar-card__title">Salsas de Autor</h3>
-            <p class="pillar-card__text">
-              Salsa Buenarda, Thousand Island, Royale, Alioli y Barbacoa elaboradas para potenciar cada combinación.
-            </p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- Video: Recorrido por el local -->
-    <section class="tour-section" id="local">
-      <div class="container">
-        <div class="section-header reveal">
-          <span class="section-eyebrow">RECORRIDO POR EL LOCAL</span>
-          <h2 class="section-title">CONOCÉ <span class="text-cheddar" data-bind="brandName">BUENARDA</span> POR DENTRO</h2>
-          <p class="section-subtitle">
-            Desde la fachada en <span data-bind="streetOnly">Colón 696</span> hasta la barra: así te esperamos.
-          </p>
-        </div>
-
-        <figure class="video-player reveal" id="tourPlayer">
-          <video
-            class="video-player__media"
-            id="tourVideo"
-            poster="assets/buenarda-local-poster.jpg"
-            preload="auto"
-            autoplay
-            muted
-            loop
-            playsinline
-            aria-label="Recorrido en video por el local"
-          >
-            <source id="tourVideoSource" src="assets/buenarda-local.mp4" type="video/mp4" />
-            Tu navegador no soporta video HTML5.
-          </video>
-
-          <div class="video-player__error" id="tourError" role="alert" hidden>
-            <p>No se pudo cargar el video del local.</p>
-            <small>Verificá que el archivo esté en <code>assets/buenarda-local.mp4</code> en formato MP4 (H.264).</small>
+          <!-- Caja de Alias bancario con copiado en 1 toque -->
+          <div class="alias-card" id="aliasCard" hidden>
+            <div class="alias-card__top">
+              <div>
+                <span class="alias-card__label">ALIAS PARA TRANSFERIR</span>
+                <strong class="alias-card__value" id="transferAliasText">buenarda.parana.mp</strong>
+                <span class="alias-card__holder" id="transferHolderText"></span>
+              </div>
+              <button type="button" class="alias-card__copy" id="copyAliasBtn">📋 Copiar Alias</button>
+            </div>
+            <p class="alias-card__hint">Recordá adjuntar el comprobante en el chat de WhatsApp al enviar.</p>
           </div>
 
-          <button type="button" class="video-player__play" id="tourPlayBtn" aria-label="Reproducir video">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.1-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z" />
-            </svg>
+          <input
+            type="text"
+            id="orderNotes"
+            placeholder="Aclaración de entrega (ej. timbre roto, portón negro — burgers sin modificaciones)"
+          />
+        </div>
+
+        <div class="cart-totals">
+          <div class="cart-totals__row">
+            <span>Subtotal</span>
+            <strong id="cartSubtotal">$0</strong>
+          </div>
+          <div class="cart-totals__row" id="cartShippingRow" hidden>
+            <span>Envío</span>
+            <strong id="cartShipping">A confirmar</strong>
+          </div>
+          <div class="cart-totals__row cart-totals__row--total">
+            <span>Total Estimado</span>
+            <strong id="cartTotal">$0</strong>
+          </div>
+        </div>
+
+        <div class="cart-actions">
+          <button type="button" class="btn btn--whatsapp" id="sendWhatsappBtn">
+            Enviar Pedido por WhatsApp →
           </button>
+          <button type="button" class="btn btn--ghost btn--sm" id="copyOrderBtn">Copiar detalle</button>
+        </div>
+      </div>
+    </aside>
 
-          <div class="video-player__bar">
-            <button type="button" class="video-player__ctrl" id="tourToggleBtn" aria-label="Pausar video">
-              <svg class="icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <rect x="6" y="5" width="4" height="14" rx="1" />
-                <rect x="14" y="5" width="4" height="14" rx="1" />
-              </svg>
-              <svg class="icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.1-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z" />
-              </svg>
-            </button>
-
-            <div class="video-player__progress" id="tourProgress" role="progressbar" aria-label="Progreso del video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <span class="video-player__progress-fill" id="tourProgressFill"></span>
+    <!-- Modal Ticket de Comanda Térmica Animado -->
+    <div class="ticket-overlay" id="ticketOverlay" role="dialog" aria-modal="true" aria-label="Comanda generada" hidden>
+      <div class="ticket-printer">
+        <div class="ticket-printer__slot" aria-hidden="true">COMANDA DIGITAL · IMPRESIÓN EN COCINA</div>
+        <article class="thermal-ticket" id="ticketPaper">
+          <header class="thermal-ticket__head">
+            <span class="thermal-ticket__brand" id="ticketBrand">BUENARDA</span>
+            <span class="thermal-ticket__sub">COMANDA DIGITAL DE COCINA</span>
+            <div class="thermal-ticket__meta">
+              <strong id="ticketCode">#BN-0000</strong>
+              <span id="ticketDateTime">19/11/2026 · 21:00 hs</span>
             </div>
+          </header>
 
-            <button type="button" class="video-player__ctrl video-player__ctrl--sound" id="tourSoundBtn" aria-label="Activar sonido" aria-pressed="false">
-              <svg class="icon-muted" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M11 5 6 9H2v6h4l5 4V5Z" />
-                <path d="m22 9-6 6" />
-                <path d="m16 9 6 6" />
-              </svg>
-              <svg class="icon-sound" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M11 5 6 9H2v6h4l5 4V5Z" />
-                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-                <path d="M19 5a10 10 0 0 1 0 14" />
-              </svg>
-              <span class="video-player__ctrl-label" id="tourSoundLabel">Activar sonido</span>
-            </button>
+          <div class="thermal-ticket__divider" aria-hidden="true">----------------------------------------</div>
+
+          <div class="thermal-ticket__customer">
+            <div><strong>Cliente:</strong> <span id="ticketCustomer">—</span></div>
+            <div><strong>Entrega:</strong> <span id="ticketMode">—</span></div>
+            <div><strong>Pago:</strong> <span id="ticketPayment">—</span></div>
           </div>
-        </figure>
 
-        <ul class="tour-chips">
-          <li>📍 <span data-bind="shortAddress">Colón 696, Paraná</span></li>
-          <li>🕒 <span data-bind="hoursLabel">Mié a Dom · 20:00 a 00:00 hs</span></li>
-          <li>🍔 Welcome Burgers Lovers</li>
-        </ul>
-      </div>
-    </section>
+          <div class="thermal-ticket__divider" aria-hidden="true">----------------------------------------</div>
 
-    <!-- Reseñas -->
-    <section class="reviews-section" id="resenas" hidden>
-      <div class="container">
-        <div class="section-header reveal">
-          <span class="section-eyebrow">LO QUE DICEN NUESTROS CLIENTES</span>
-          <h2 class="section-title">RESEÑAS <span class="text-cheddar">BUENARDAS</span></h2>
-        </div>
-        <div class="reviews-grid" id="reviewsList"></div>
-      </div>
-    </section>
+          <div class="thermal-ticket__items" id="ticketItems"></div>
 
-    <!-- Ubicación y Horarios -->
-    <section class="location-section" id="ubicacion">
-      <div class="container location-grid">
-        <div class="location-card reveal">
-          <span class="section-eyebrow">VENÍ A BUSCAR LA TUYA O PEDÍ DELIVERY</span>
-          <h2 class="location-card__title"><span data-bind="streetOnlyUpper">COLÓN 696</span> <span class="text-cheddar">· PARANÁ</span></h2>
-          <p class="location-card__desc">
-            Estamos en el corazón de Paraná, Entre Ríos. Hacé tu pedido directo desde la web y recibilo listo para enviar por WhatsApp.
-          </p>
+          <div class="thermal-ticket__divider" aria-hidden="true">----------------------------------------</div>
 
-          <ul class="info-list">
-            <li class="info-list__item">
-              <span class="info-list__badge">📍</span>
-              <div>
-                <strong>Dirección del Local</strong>
-                <span data-bind="fullAddress">Colón 696, E3100 Paraná, Entre Ríos</span>
-              </div>
-            </li>
-            <li class="info-list__item">
-              <span class="info-list__badge">🕒</span>
-              <div>
-                <strong>Días y Horarios</strong>
-                <span data-bind="hoursFullLabel">Miércoles a Domingo · 20:00 a 00:00 hs</span>
-              </div>
-            </li>
-            <li class="info-list__item">
-              <span class="info-list__badge">📸</span>
-              <div>
-                <strong>Instagram Oficial</strong>
-                <span><a href="https://www.instagram.com/buenardaparana/" data-bind-href="instagramUrl" target="_blank" rel="noopener noreferrer" data-bind="brandHandle">@buenardaparana</a> (<span data-bind="igLong">17,5 mil</span> seguidores)</span>
-              </div>
-            </li>
-          </ul>
-
-          <div class="location-card__actions">
-            <a
-              href="https://www.google.com/maps/search/?api=1&query=Colon+696+Parana+Entre+Rios"
-              data-bind-href="mapsUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn btn--primary"
-            >
-              Abrir en Google Maps
-            </a>
-            <a
-              href="https://www.instagram.com/buenardaparana/"
-              data-bind-href="instagramUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn btn--ghost"
-            >
-              Seguir en Instagram
-            </a>
-          </div>
-        </div>
-
-        <div class="map-art reveal">
-          <iframe
-            class="map-art__frame"
-            id="locationMapFrame"
-            title="Mapa de Buenarda en Colón 696, Paraná"
-            src="https://www.google.com/maps?q=Col%C3%B3n+696,+Paran%C3%A1,+Entre+R%C3%ADos,+Argentina&output=embed"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-            allowfullscreen
-          ></iframe>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container footer__inner">
-      <div class="footer__brand">
-        <span class="brand__title" data-bind="brandName">BUENARDA</span>
-        <span class="footer__tagline"><span data-bind="tagline">Hamburguesas de alta calidad | 100% Carne</span> · <span data-bind="shortAddress">Colón 696, Paraná</span></span>
-      </div>
-      <div class="footer__links">
-        <a href="#carta">Carta</a>
-        <a href="#calidad">Calidad</a>
-        <a href="#ubicacion">Ubicación</a>
-        <a href="https://www.instagram.com/buenardaparana/" data-bind-href="instagramUrl" target="_blank" rel="noopener noreferrer">Instagram</a>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Overlay y Drawer Lateral del Carrito -->
-  <div class="cart-overlay" id="cartOverlay" hidden></div>
-  <aside class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-label="Carrito de compras" aria-hidden="true" inert>
-    <div class="cart-drawer__header">
-      <div>
-        <h2 class="cart-drawer__title">TU PEDIDO</h2>
-        <p class="cart-drawer__subtitle">Armá tu combo, asigná nombres y envialo por WhatsApp</p>
-      </div>
-      <button type="button" class="cart-drawer__close" id="closeCartBtn" aria-label="Cerrar carrito">✕</button>
-    </div>
-
-    <div class="cart-notice" id="cartOpenNotice" role="status" hidden></div>
-
-    <div class="cart-drawer__body" id="cartItemsContainer"></div>
-
-    <div class="cart-drawer__footer" id="cartFooter">
-      <div class="order-form">
-        <div class="delivery-toggle" role="group" aria-label="Modalidad de entrega">
-          <button type="button" class="delivery-btn is-active" data-delivery="retiro" aria-pressed="true">🏪 Retiro <span data-bind="streetOnly">Colón 696</span></button>
-          <button type="button" class="delivery-btn" data-delivery="delivery" aria-pressed="false">🛵 Delivery Paraná</button>
-        </div>
-
-        <input type="text" id="customerName" class="form-input" placeholder="Tu nombre (quien realiza el pedido)" autocomplete="name" aria-label="Tu nombre" required />
-
-        <!-- Zona de delivery + Dirección (visibles solo en modo Delivery) -->
-        <select id="deliveryZoneSelect" class="form-input" aria-label="Zona de envío" hidden></select>
-        <input type="text" id="customerAddress" class="form-input" placeholder="Dirección en Paraná (ej. Urquiza 1150)" autocomplete="street-address" aria-label="Dirección de entrega" hidden />
-
-        <select id="paymentMethod" class="form-input" aria-label="Medio de pago">
-          <option value="Efectivo">💵 Efectivo</option>
-          <option value="Transferencia / Mercado Pago">📲 Transferencia / Mercado Pago</option>
-          <option value="Tarjeta de Débito / Crédito">💳 Tarjeta de Débito / Crédito</option>
-        </select>
-
-        <!-- Caja de Alias bancario con copiado en 1 toque -->
-        <div class="alias-card" id="aliasCard" hidden>
-          <div class="alias-card__top">
-            <div>
-              <span class="alias-card__label">ALIAS / CVU PARA TRANSFERIR</span>
-              <strong class="alias-card__value" id="aliasValueText">buenarda.parana.mp</strong>
-              <small class="alias-card__holder" id="aliasHolderText">Titular: Buenarda Paraná</small>
+          <div class="thermal-ticket__totals">
+            <div class="ticket-total-row"><span>Subtotal</span><strong id="ticketSubtotal">$0</strong></div>
+            <div class="ticket-total-row" id="ticketShippingRow" hidden>
+              <span>Envío</span><strong id="ticketShipping">$0</strong>
             </div>
-            <button type="button" class="alias-card__copy" id="copyAliasBtn">📋 Copiar Alias</button>
+            <div class="ticket-total-row ticket-total-row--grand">
+              <span>TOTAL</span><strong id="ticketTotal">$0</strong>
+            </div>
           </div>
-          <p class="alias-card__hint">💡 Recordá adjuntar el comprobante en el chat de WhatsApp al enviar tu pedido.</p>
-        </div>
 
-        <input type="text" id="orderNotes" class="form-input" placeholder="Notas generales (ej. timbre roto, vuelto de $20.000...)" />
-      </div>
+          <div class="thermal-ticket__stamp" aria-hidden="true">ENVIANDO A COCINA ✓</div>
+          <p class="thermal-ticket__footer">Burgers sin modificaciones · Colón 696, Paraná</p>
+        </article>
 
-      <div class="cart-totals">
-        <div class="cart-totals__row">
-          <span>Subtotal</span>
-          <strong id="cartSubtotal">$0</strong>
+        <div class="ticket-printer__actions">
+          <a
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn--whatsapp"
+            id="ticketWhatsappLink"
+          >
+            Abrir WhatsApp ahora →
+          </a>
+          <button type="button" class="btn btn--ghost btn--sm" id="closeTicketBtn">Volver a la carta</button>
         </div>
-        <div class="cart-totals__row" id="cartShippingRow" hidden>
-          <span>Envío</span>
-          <strong id="cartShipping">A confirmar por WhatsApp</strong>
-        </div>
-        <div class="cart-totals__row cart-totals__row--total">
-          <span>Total Estimado</span>
-          <strong id="cartTotal">$0</strong>
-        </div>
-      </div>
-
-      <div class="cart-actions">
-        <button type="button" class="btn btn--whatsapp btn--full" id="sendWhatsappBtn">
-          Enviar Pedido por WhatsApp
-        </button>
-        <button type="button" class="btn btn--ghost btn--full btn--sm" id="copyOrderBtn">
-          Copiar detalle del pedido
-        </button>
       </div>
     </div>
-  </aside>
 
-  <!-- Modal Ticket de Comanda Térmica Animado -->
-  <div class="ticket-overlay" id="ticketOverlay" hidden>
-    <div class="ticket-printer" role="dialog" aria-modal="true" aria-labelledby="ticketHeading">
-      <div class="ticket-printer__slot" aria-hidden="true">
-        <span>IMPRESORA DE COCINA · COMANDA GENERADA</span>
-      </div>
+    <!-- Notificación Toast -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-      <div class="thermal-ticket" id="thermalTicket">
-        <div class="thermal-ticket__head">
-          <strong class="thermal-ticket__brand" id="ticketBrand">BUENARDA</strong>
-          <span class="thermal-ticket__sub" id="ticketAddress">Colón 696 · Paraná, Entre Ríos</span>
-          <div class="thermal-ticket__meta">
-            <span>ORDEN <strong id="ticketCode">#BN-0000</strong></span>
-            <span id="ticketDateTime">18/11/2026 · 21:30 hs</span>
-          </div>
-        </div>
-
-        <div class="thermal-ticket__customer" id="ticketCustomerInfo"></div>
-
-        <div class="thermal-ticket__divider">----------------------------------------</div>
-
-        <div class="thermal-ticket__items" id="ticketItemsList"></div>
-
-        <div class="thermal-ticket__divider">----------------------------------------</div>
-
-        <div class="thermal-ticket__totals" id="ticketTotalsList"></div>
-
-        <div class="thermal-ticket__stamp" id="ticketStamp" aria-label="Enviando a cocina">
-          ENVIANDO A COCINA
-        </div>
-
-        <p class="thermal-ticket__footer">
-          ¡Gracias por elegirnos! Confirmá el envío en la ventana de WhatsApp.
-        </p>
-      </div>
-
-      <div class="ticket-printer__actions">
-        <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn--whatsapp btn--full" id="ticketReopenWaBtn">
-          Abrir WhatsApp ahora →
-        </a>
-        <button type="button" class="btn btn--ghost btn--full btn--sm" id="closeTicketBtn">
-          Cerrar comanda
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Barra fija de pedido (solo móvil) -->
-  <button type="button" class="mobile-cart-bar" id="mobileCartBar" aria-label="Ver mi pedido" hidden>
-    <span class="mobile-cart-bar__left">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-        <path d="M3 6h18" />
-        <path d="M16 10a4 4 0 0 1-8 0" />
-      </svg>
-      <span id="mobileCartCount">0 productos</span>
-    </span>
-    <span class="mobile-cart-bar__right">Ver pedido · <strong id="mobileCartTotal">$0</strong> →</span>
-  </button>
-
-  <!-- Notificación Toast -->
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-</body>
+    <script src="menu-data.js"></script>
+    <script src="app.js"></script>
+  </body>
 </html>

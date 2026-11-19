@@ -2883,3 +2883,106 @@ body.no-scroll .toast.is-visible {
     transform: none !important;
   }
 }
+
+/* ==========================================================================
+   v5 — Promos Solo Efectivo, Sin Modificaciones y Regla de Envíos / Cambio
+   ========================================================================== */
+
+.policy-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.policy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.32rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-main);
+}
+
+.policy-pill--cash {
+  background: rgba(245, 183, 0, 0.12);
+  border-color: rgba(245, 183, 0, 0.45);
+  color: var(--cheddar);
+}
+
+.filter-tab--promo {
+  border-color: rgba(245, 183, 0, 0.45);
+  color: var(--cheddar);
+}
+
+.burger-card--promo {
+  border-color: rgba(245, 183, 0, 0.42);
+  background: linear-gradient(165deg, #1b170d 0%, #131313 55%);
+}
+
+.burger-card__cash-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: fit-content;
+  margin-top: 0.2rem;
+  padding: 0.22rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(93, 255, 163, 0.12);
+  border: 1px solid rgba(93, 255, 163, 0.35);
+  color: #5dffa3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.burger-card__fixed-note {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.shipping-rule-box {
+  padding: 0.68rem 0.82rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(245, 183, 0, 0.5);
+  background: rgba(245, 183, 0, 0.09);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+.shipping-rule-box strong {
+  display: block;
+  color: var(--cheddar);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+}
+
+.shipping-rule-box p {
+  margin: 0;
+  color: #f3e8c8;
+}
+
+.promo-cash-notice {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(93, 255, 163, 0.4);
+  background: rgba(93, 255, 163, 0.09);
+  color: #d8ffea;
+  font-size: 0.75rem;
+  line-height: 1.38;
+}
+
+.cash-change-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
