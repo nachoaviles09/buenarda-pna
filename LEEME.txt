@@ -1,0 +1,15 @@
+BUENARDA · Capa "Neón + Lab"
+============================
+Archivos NUEVOS (solo agregados):  wow.css  y  wow.js
+Archivo con 2 líneas agregadas:    index.html  (link a wow.css y script wow.js)
+Archivos SIN cambios (idénticos a los tuyos): app.js, styles.css, menu-data.js, favicon.svg, site.webmanifest, assets/
+
+Qué suma:
+ - Cartel de neón en vivo (ABIERTO / CERRADO) con cuenta regresiva a cierre/apertura.
+ - BUENARDA LAB: test "¿Qué burger sos?" (4 preguntas) con tarjeta PNG para compartir en historias,
+   botón para agregar al pedido y botón extra en el hero.
+ - Luz que sigue al cursor, inclinación 3D de las burgers, migas de cheddar al agregar,
+   barra de progreso con mini burger, sonido/vibración opcional (apagado por defecto).
+
+Subir TODO manteniendo la carpeta assets/ al lado de index.html.
+Para quitar la capa: borrá las dos líneas de wow.css y wow.js en index.html.
