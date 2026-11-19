@@ -32,11 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function escapeHtml(str) {
     return String(str || '')
-      .replace(/&/g, '&')
-      .replace(/</g, '<')
-      .replace(/>/g, '>')
-      .replace(/"/g, '"')
-      .replace(/'/g, ''');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   let toastTimer = null;
@@ -147,9 +147,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderItemVisual(item, size = 'doble') {
     if (SITE.usePhotos && item.isBurger) {
+      const folder = (SITE.photoBasePath || 'burgers').replace(/\/+$/, '');
       const ext = SITE.photoExtension || 'jpg';
-      const src = `assets/burgers/${item.id}.${ext}`;
-      return `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.name)}" class="item-photo" loading="lazy" />`;
+      const src = `${folder}/${item.id}.${ext}`;
+      return `
+        <img
+          src="${escapeHtml(src)}"
+          alt="${escapeHtml(item.name)}"
+          class="item-photo"
+          loading="lazy"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+        />
+        <div style="display:none;">${buildBurgerSVG(item.layers, size)}</div>
+      `;
     }
     if (item.isBurger) {
       return buildBurgerSVG(item.layers, size);
