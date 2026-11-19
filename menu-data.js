@@ -83,7 +83,7 @@ const SITE = {
   instagramFollowers: { short: '+17.5K', long: '17,5 mil' },
 
   // Fotos reales: poné true cuando subas las fotos recortadas a assets/burgers/<id>.jpg
-  usePhotos: false,
+  usePhotos: true,
   photoExtension: 'png',
 
   // Sugerencias dentro del carrito
