@@ -583,8 +583,6 @@
       (it.price ? '<div class="wow-res__price">' + esc(it.price) + '</div>' : '') +
       '<div class="wow-actions">' +
       '<button type="button" class="btn btn--primary" data-wow-act="add">+ Agregar al pedido</button>' +
-      '<button type="button" class="btn btn--ghost" data-wow-act="share">Compartir mi tarjeta</button>' +
-      '<button type="button" class="btn btn--ghost" data-wow-act="download">Descargar</button>' +
       '</div><button type="button" class="wow-again" data-wow-act="again">Volver a hacer el test</button></div></div>';
   }
 

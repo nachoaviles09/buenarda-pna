@@ -896,3 +896,13 @@
 .wow-pay-warn[hidden] {
   display: none;
 }
+
+/* Ocultar botones "Compartir mi tarjeta" y "Descargar" en el resultado del test */
+[class*="wow-"] button[id*="share" i],
+[class*="wow-"] button[id*="download" i],
+[class*="wow-"] a[id*="share" i],
+[class*="wow-"] a[id*="download" i],
+.wow-match__actions button:not([id*="add" i]):not([id*="cart" i]),
+.wow-result__actions button:not([id*="add" i]):not([id*="cart" i]) {
+  display: none !important;
+}

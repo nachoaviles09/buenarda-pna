@@ -100,7 +100,7 @@
         <a href="#carta" class="nav-links__item">Carta Oficial</a>
         <a href="#calidad" class="nav-links__item">100% Carne</a>
         <a href="#local" class="nav-links__item">Conocé el Local</a>
-        <a href="#ubicacion" class="nav-links__item">Local & Horarios</a>
+        <a href="#ubicacion" class="nav-links__item">Ubicación & Horarios</a>
       </nav>
 
       <div class="navbar__actions">
@@ -525,13 +525,14 @@
 
         <input type="text" id="customerName" class="form-input" placeholder="Tu nombre (quien realiza el pedido)" autocomplete="name" aria-label="Tu nombre" required />
 
+        <input type="text" id="customerAddress" class="form-input" placeholder="Dirección en Paraná (ej. Urquiza 1150)" autocomplete="street-address" aria-label="Dirección de entrega" hidden />
+
         <!-- Zona de delivery + Dirección (visibles solo en modo Delivery) -->
         <select id="deliveryZoneSelect" class="form-input" aria-label="Zona de envío" hidden></select>
-        <input type="text" id="customerAddress" class="form-input" placeholder="Dirección en Paraná (ej. Urquiza 1150)" autocomplete="street-address" aria-label="Dirección de entrega" hidden />
 
         <select id="paymentMethod" class="form-input" aria-label="Medio de pago">
           <option value="Efectivo">💵 Efectivo</option>
-          <option value="Transferencia / Mercado Pago">📲 Transferencia / Mercado Pago</option>
+          <option value="Transferencia / Mercado Pago">📲 Transferencia</option>
           <option value="Tarjeta de Débito / Crédito">💳 Tarjeta de Débito / Crédito</option>
         </select>
 
@@ -570,9 +571,6 @@
         <button type="button" class="btn btn--whatsapp btn--full" id="sendWhatsappBtn">
           Enviar Pedido por WhatsApp
         </button>
-        <button type="button" class="btn btn--ghost btn--full btn--sm" id="copyOrderBtn">
-          Copiar detalle del pedido
-        </button>
       </div>
     </div>
   </aside>
@@ -610,12 +608,13 @@
 
         <p class="thermal-ticket__footer">
           ¡Gracias por elegirnos! Confirmá el envío en la ventana de WhatsApp.
+          <strong>Si no se abrió WhatsApp, apretá el botón verde de abajo para enviar el pedido.</strong>
         </p>
       </div>
 
       <div class="ticket-printer__actions">
         <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn--whatsapp btn--full" id="ticketReopenWaBtn">
-          Abrir WhatsApp ahora →
+          Enviar pedido por WhatsApp →
         </a>
         <button type="button" class="btn btn--ghost btn--full btn--sm" id="closeTicketBtn">
           Cerrar comanda

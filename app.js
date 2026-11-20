@@ -516,7 +516,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Vitrina Hero
   const getHeroBurgers = () => {
     const burgers = menuItems.filter((i) => i.isBurger && i.available !== false);
-    return burgers.length ? burgers : menuItems.filter((i) => i.isBurger);
+    const list = burgers.length ? burgers : menuItems.filter((i) => i.isBurger);
+    const topIds = ['bacon-cheese-burger', 'crispy-bacon'];
+    const featured = topIds
+      .map((id) => list.find((item) => item.id === id))
+      .filter(Boolean);
+    return featured.length ? featured : list;
   };
 
   const renderHeroShowcase = () => {
@@ -773,14 +778,11 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   };
 
-  const getShippingCost = () => {
+ const getShippingCost = () => {
     if (state.deliveryMode !== 'delivery') return 0;
-    if (deliveryZones.length > 0) {
-      const z = deliveryZones.find((zone) => zone.id === state.selectedZoneId) || deliveryZones[0];
-      if (!z) return null;
-      return z.fee == null || z.fee === '' ? null : Number(z.fee);
-    }
-    return config.delivery.fee == null ? null : Number(config.delivery.fee);
+    return config.delivery.fee == null || config.delivery.fee === ''
+      ? null
+      : Number(config.delivery.fee);
   };
 
   const renderDeliveryZones = () => {
@@ -814,6 +816,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderCart = () => {
     const container = $('cartItemsContainer');
     const totalUnits = state.cart.reduce((acc, c) => acc + c.qty, 0);
+    const totalBurgers = state.cart.reduce(
+      (acc, c) => acc + (c.isBurger && c.size !== 'promo' ? c.qty : 0),
+      0
+    );
     const subtotal = state.cart.reduce((acc, c) => acc + c.unitPrice * c.qty, 0);
 
     if ($('cartCountBadge')) $('cartCountBadge').textContent = String(totalUnits);
@@ -842,6 +848,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const sizeLabel =
               c.size === 'triple' ? ' · TRIPLE' : c.size === 'doble' ? ' · DOBLE' : '';
             const lineSubtotal = c.unitPrice * c.qty;
+            const showPerson = totalBurgers >= 2 && c.isBurger && c.size !== 'promo';
+
+            const noteInput =
+              '<input type="text" class="cart-item__note" data-field="note" data-uid="' +
+              escapeHTML(c.uid) +
+              '" value="' +
+              escapeHTML(c.note || '') +
+              '" placeholder="📝 Aclaración (ej. sin pepinillos)"/>';
+
+            const inputsHtml = showPerson
+              ? '<div class="cart-item__inputs">' +
+                '<input type="text" class="cart-item__person" data-field="person" data-uid="' +
+                escapeHTML(c.uid) +
+                '" value="' +
+                escapeHTML(c.person || '') +
+                '" placeholder="👤 ¿De quién es?"/>' +
+                noteInput +
+                '</div>'
+              : noteInput;
+
             return (
               '<div class="cart-item" data-uid="' +
               escapeHTML(c.uid) +
@@ -873,18 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
               '" aria-label="Eliminar producto">✕</button>' +
               '</div>' +
               '</div>' +
-              '<div class="cart-item__inputs">' +
-              '<input type="text" class="cart-item__person" data-field="person" data-uid="' +
-              escapeHTML(c.uid) +
-              '" value="' +
-              escapeHTML(c.person || '') +
-              '" placeholder="👤 ¿De quién es?"/>' +
-              '<input type="text" class="cart-item__note" data-field="note" data-uid="' +
-              escapeHTML(c.uid) +
-              '" value="' +
-              escapeHTML(c.note || '') +
-              '" placeholder="📝 Aclaración (ej. sin pepinillos)"/>' +
-              '</div>' +
+              inputsHtml +
               '</div>'
             );
           })
@@ -1016,15 +1031,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    const zoneObj =
-      state.deliveryMode === 'delivery'
-        ? deliveryZones.find((z) => z.id === state.selectedZoneId)
-        : null;
-
     const modalidadLabel =
-      state.deliveryMode === 'delivery'
-        ? 'Delivery' + (zoneObj ? ' (' + zoneObj.name + ')' : '')
-        : 'Retiro en Local';
+      state.deliveryMode === 'delivery' ? 'Delivery' : 'Retiro en Local';
 
     const lines = [
       '*NUEVO PEDIDO — ' + config.brand.name + '*',
@@ -1040,11 +1048,25 @@ document.addEventListener('DOMContentLoaded', () => {
     lines.push('');
     lines.push('*DETALLE DEL PEDIDO:*');
 
-    const hasPeople = state.cart.some((c) => (c.person || '').trim());
+    lines.push(
+      '*TOTAL: ' +
+        formatARS(total) +
+        (state.deliveryMode === 'delivery' && shipping == null ? ' + envío' : '') +
+        '*'
+    );
+
+   const canAssignPerson = burgersDoble + burgersTriple >= 2;
+    const hasPeople =
+      canAssignPerson &&
+      state.cart.some((c) => c.isBurger && c.size !== 'promo' && (c.person || '').trim());
+
     if (hasPeople) {
       const groups = {};
       state.cart.forEach((c) => {
-        const who = (c.person || '').trim() || 'General';
+        const who =
+          c.isBurger && c.size !== 'promo' && (c.person || '').trim()
+            ? c.person.trim()
+            : 'General';
         if (!groups[who]) groups[who] = [];
         groups[who].push(c);
       });
@@ -1171,11 +1193,21 @@ document.addEventListener('DOMContentLoaded', () => {
           : '');
     }
 
-    if ($('ticketItemsList')) {
+   if ($('ticketItemsList')) {
+      const totalBurgersTicket = state.cart.reduce(
+        (acc, c) => acc + (c.isBurger && c.size !== 'promo' ? c.qty : 0),
+        0
+      );
+
       $('ticketItemsList').innerHTML = state.cart
         .map((c) => {
           const sz = c.size === 'triple' ? ' (TRIPLE)' : c.size === 'doble' ? ' (DOBLE)' : '';
-          const personBadge = (c.person || '').trim()
+          const showBadge =
+            totalBurgersTicket >= 2 &&
+            c.isBurger &&
+            c.size !== 'promo' &&
+            (c.person || '').trim();
+          const personBadge = showBadge
             ? '<span class="ticket-row__person">' + escapeHTML(c.person.trim()) + '</span>'
             : '';
           const subNote = (c.note || '').trim()
@@ -1239,6 +1271,8 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.hidden = false;
   };
 
+let waRedirectTimer = null;
+
   const handleCheckout = () => {
     if (!state.cart.length) {
       showToast('Agregá al menos un producto al pedido.');
@@ -1276,7 +1310,25 @@ document.addEventListener('DOMContentLoaded', () => {
     logOrderToSheet(order);
     closeCart();
     openTicketModal(order, waUrl);
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+    state.cart = [];
+    if (typeof saveState === 'function') {
+      saveState();
+    } else {
+      try {
+        localStorage.removeItem('buenarda_cart');
+        localStorage.removeItem('buenarda_state');
+      } catch (e) {}
+    }
+    renderCart();
+
+    closeCart();
+    openTicketModal(order, waUrl);
+
+    clearTimeout(waRedirectTimer);
+    waRedirectTimer = setTimeout(() => {
+      window.location.href = waUrl;
+    }, 2000);
   };
 
   // Sincronización en vivo con Google Sheets (CSV)
@@ -1711,7 +1763,54 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    document.querySelectorAll('.delivery-btn').forEach((btn) => {
+    const syncShippingRuleBox = () => {
+      const isDel = state.deliveryMode === 'delivery';
+      const cartRoot = $('cartDrawer');
+      if (!cartRoot) return;
+
+      const boxes = new Set(cartRoot.querySelectorAll('.shipping-rule-box'));
+      cartRoot.querySelectorAll('div, p, aside').forEach((el) => {
+        if (
+          el.id === 'cartDrawer' ||
+          el.id === 'cartFooter' ||
+          el.classList.contains('order-form') ||
+          el.classList.contains('cart-totals')
+        ) {
+          return;
+        }
+        const txt = (el.textContent || '').toLowerCase();
+        if (txt.includes('repartidor') || (txt.includes('ubicación') && txt.includes('cambio'))) {
+          const parent = el.parentElement;
+          const parentHasSameText =
+            parent &&
+            parent.id !== 'cartFooter' &&
+            !parent.classList.contains('order-form') &&
+            (parent.textContent || '').toLowerCase().includes('repartidor');
+          if (!parentHasSameText) boxes.add(el);
+        }
+      });
+
+      boxes.forEach((box) => {
+        if (box.hidden !== !isDel) box.hidden = !isDel;
+        const targetDisplay = isDel ? '' : 'none';
+        if (box.style.display !== targetDisplay) {
+          box.style.setProperty('display', targetDisplay, isDel ? '' : 'important');
+        }
+      });
+    };
+
+    syncShippingRuleBox();
+    const cartDrawerEl = $('cartDrawer');
+    if (cartDrawerEl && 'MutationObserver' in window) {
+      new MutationObserver(syncShippingRuleBox).observe(cartDrawerEl, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['hidden', 'style', 'class'],
+      });
+    }
+
+   document.querySelectorAll('.delivery-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.deliveryMode = btn.dataset.delivery || 'retiro';
         document.querySelectorAll('.delivery-btn').forEach((b) => {
@@ -1720,18 +1819,25 @@ document.addEventListener('DOMContentLoaded', () => {
           b.setAttribute('aria-pressed', String(active));
         });
         const isDel = state.deliveryMode === 'delivery';
-        if ($('deliveryZoneSelect')) $('deliveryZoneSelect').hidden = !isDel;
-        if ($('customerAddress')) $('customerAddress').hidden = !isDel;
+        syncShippingRuleBox();
+
+        let addrInput = $('customerAddress');
+        if (!addrInput && $('customerName')) {
+          addrInput = document.createElement('input');
+          addrInput.type = 'text';
+          addrInput.id = 'customerAddress';
+          addrInput.className = 'form-input';
+          addrInput.placeholder = 'Dirección en Paraná (ej. Urquiza 1150)';
+          addrInput.autocomplete = 'street-address';
+          addrInput.setAttribute('aria-label', 'Dirección de entrega');
+          addrInput.hidden = true;
+          $('customerName').insertAdjacentElement('afterend', addrInput);
+        }
+        if (addrInput) addrInput.hidden = !isDel;
+
         renderCart();
       });
     });
-
-    if ($('deliveryZoneSelect')) {
-      $('deliveryZoneSelect').addEventListener('change', (e) => {
-        state.selectedZoneId = e.target.value;
-        renderCart();
-      });
-    }
 
     if ($('paymentMethod')) {
       $('paymentMethod').addEventListener('change', (e) => {
@@ -1754,29 +1860,27 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    if ($('copyOrderBtn')) {
-      $('copyOrderBtn').addEventListener('click', () => {
-        if (!state.cart.length) {
-          showToast('Tu pedido está vacío.');
-          return;
-        }
-        const order = buildOrderPayload();
-        copyText(order.whatsappText, 'Detalle del pedido copiado');
-      });
-    }
-
     if ($('sendWhatsappBtn')) {
       $('sendWhatsappBtn').addEventListener('click', handleCheckout);
     }
 
+    if ($('ticketReopenWaBtn')) {
+      $('ticketReopenWaBtn').addEventListener('click', () => {
+        clearTimeout(waRedirectTimer);
+      });
+    }
+
     if ($('closeTicketBtn')) {
       $('closeTicketBtn').addEventListener('click', () => {
+        clearTimeout(waRedirectTimer);
         if ($('ticketOverlay')) $('ticketOverlay').hidden = true;
       });
     }
+
     if ($('ticketOverlay')) {
       $('ticketOverlay').addEventListener('click', (e) => {
         if (e.target === $('ticketOverlay')) {
+          clearTimeout(waRedirectTimer);
           $('ticketOverlay').hidden = true;
         }
       });
@@ -1789,7 +1893,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderPromoBanner();
   renderHeroShowcase();
   renderMenu(true);
-  renderDeliveryZones();
   renderCart();
   renderReviews();
   initTourVideo();
